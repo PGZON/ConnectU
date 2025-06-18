@@ -1,0 +1,62 @@
+import { User } from '@/types';
+
+export const mockUsers: User[] = [
+  {
+    id: '1',
+    name: 'Alex Johnson',
+    email: 'alex@university.edu',
+    role: 'student',
+    profileImageUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
+    bio: 'Computer Science student passionate about mobile development and AI.',
+    department: 'Computer Science',
+    graduationYear: 2025,
+  },
+  {
+    id: '2',
+    name: 'Sarah Williams',
+    email: 'sarah@university.edu',
+    role: 'alumni',
+    profileImageUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
+    bio: 'Software Engineer at Google. Graduated in 2018.',
+    department: 'Computer Science',
+    graduationYear: 2018,
+    company: 'Google',
+    position: 'Software Engineer',
+  },
+  {
+    id: '3',
+    name: 'Michael Chen',
+    email: 'michael@university.edu',
+    role: 'alumni',
+    profileImageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
+    bio: 'Product Manager at Microsoft. Helping students navigate tech careers.',
+    department: 'Business Administration',
+    graduationYear: 2015,
+    company: 'Microsoft',
+    position: 'Product Manager',
+  },
+  {
+    id: '4',
+    name: 'Emily Rodriguez',
+    email: 'emily@university.edu',
+    role: 'student',
+    profileImageUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
+    bio: 'Marketing major with interest in digital marketing strategies.',
+    department: 'Marketing',
+    graduationYear: 2024,
+  },
+  {
+    id: '5',
+    name: 'David Kim',
+    email: 'david@university.edu',
+    role: 'alumni',
+    profileImageUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
+    bio: 'Data Scientist at Amazon. Graduated in 2019.',
+    department: 'Statistics',
+    graduationYear: 2019,
+    company: 'Amazon',
+    position: 'Data Scientist',
+  },
+];
+
+export const currentUser = mockUsers[0];

@@ -1,0 +1,96 @@
+import React, { useEffect } from 'react';
+import { Tabs } from 'expo-router';
+import { MessageCircle, Home, Users, User, BookOpen } from 'lucide-react-native';
+import Colors from '@/constants/colors';
+import { useMessageStore } from '@/store/messageStore';
+import { useConnectionStore } from '@/store/connectionStore';
+import { Platform, Text, View } from 'react-native';
+
+export default function TabLayout() {
+  const { fetchConnections } = useConnectionStore();
+  const { getTotalUnreadCount } = useMessageStore();
+  
+  useEffect(() => {
+    fetchConnections();
+  }, [fetchConnections]);
+
+  return (
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.inactive,
+        tabBarStyle: {
+          borderTopColor: Colors.border,
+        },
+        headerStyle: {
+          backgroundColor: Colors.card,
+        },
+        headerTitleStyle: {
+          color: Colors.text,
+          fontWeight: '600',
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Feed',
+          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="network"
+        options={{
+          title: 'Network',
+          tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="messages"
+        options={{
+          title: 'Messages',
+          tabBarIcon: ({ color, size }) => (
+            <View>
+              <MessageCircle size={size} color={color} />
+              {getTotalUnreadCount() > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  right: -6,
+                  top: -4,
+                  backgroundColor: Colors.secondary,
+                  borderRadius: 10,
+                  width: 16,
+                  height: 16,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 10,
+                    fontWeight: 'bold',
+                  }}>
+                    {getTotalUnreadCount() > 9 ? '9+' : getTotalUnreadCount()}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="queries"
+        options={{
+          title: 'Queries',
+          tabBarIcon: ({ color, size }) => <BookOpen size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
+        }}
+      />
+    </Tabs>
+  );
+}

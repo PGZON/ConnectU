@@ -1,0 +1,197 @@
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
+import { useQueryStore } from '@/store/queryStore';
+import Colors from '@/constants/colors';
+import Button from '@/components/Button';
+import Avatar from '@/components/Avatar';
+import { formatTimeAgo } from '@/utils/dateUtils';
+
+export default function QueryDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { queries, answerQuery, isLoading } = useQueryStore();
+  const [answer, setAnswer] = useState('');
+  const router = useRouter();
+
+  const query = queries.find(q => q.id === id);
+
+  if (!query) {
+    return (
+      <View style={styles.notFoundContainer}>
+        <Text style={styles.notFoundText}>Query not found</Text>
+        <Button
+          title="Go Back"
+          onPress={() => router.back()}
+          variant="outline"
+        />
+      </View>
+    );
+  }
+
+  const handleSubmitAnswer = async () => {
+    if (answer.trim() === '') return;
+    
+    await answerQuery(id, answer);
+    router.back();
+  };
+
+  return (
+    <>
+      <Stack.Screen options={{ title: 'Career Query' }} />
+      
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.queryCard}>
+            <View style={styles.userInfo}>
+              <Avatar uri={query.student?.profileImageUrl} size={40} />
+              <View style={styles.userDetails}>
+                <Text style={styles.userName}>{query.student?.name}</Text>
+                <Text style={styles.timestamp}>{formatTimeAgo(new Date(query.createdAt))}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.questionContainer}>
+              <Text style={styles.questionLabel}>Question:</Text>
+              <Text style={styles.questionText}>{query.question}</Text>
+            </View>
+            
+            {query.answer ? (
+              <View style={styles.answerContainer}>
+                <View style={styles.userInfo}>
+                  <Avatar uri={query.alumni?.profileImageUrl} size={40} />
+                  <View style={styles.userDetails}>
+                    <Text style={styles.userName}>{query.alumni?.name}</Text>
+                    {query.answeredAt && (
+                      <Text style={styles.timestamp}>{formatTimeAgo(new Date(query.answeredAt))}</Text>
+                    )}
+                  </View>
+                </View>
+                <Text style={styles.answerLabel}>Answer:</Text>
+                <Text style={styles.answerText}>{query.answer}</Text>
+              </View>
+            ) : (
+              <View style={styles.answerInputContainer}>
+                <Text style={styles.answerLabel}>Your Answer:</Text>
+                <TextInput
+                  style={styles.answerInput}
+                  placeholder="Provide your professional advice..."
+                  value={answer}
+                  onChangeText={setAnswer}
+                  multiline
+                  maxLength={1000}
+                  placeholderTextColor={Colors.textSecondary}
+                />
+                <Button
+                  title="Submit Answer"
+                  onPress={handleSubmitAnswer}
+                  variant="primary"
+                  loading={isLoading}
+                  disabled={answer.trim() === ''}
+                  fullWidth
+                  style={styles.submitButton}
+                />
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  scrollContent: {
+    padding: 16,
+  },
+  notFoundContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  notFoundText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 16,
+  },
+  queryCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 16,
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  userDetails: {
+    marginLeft: 12,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  timestamp: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  questionContainer: {
+    marginBottom: 24,
+  },
+  questionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  questionText: {
+    fontSize: 16,
+    color: Colors.text,
+    lineHeight: 24,
+  },
+  answerContainer: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: 16,
+  },
+  answerLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  answerText: {
+    fontSize: 16,
+    color: Colors.text,
+    lineHeight: 24,
+  },
+  answerInputContainer: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: 16,
+  },
+  answerInput: {
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: Colors.text,
+    minHeight: 150,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+  },
+  submitButton: {
+    marginTop: 8,
+  },
+});
