@@ -5,14 +5,17 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Button from '@/components/Button';
-import { Camera, LogOut, Edit2 } from 'lucide-react-native';
+import { Camera, LogOut, Edit2, CheckCircle, XCircle } from 'lucide-react-native';
 import { currentUser } from '@/mocks/users';
 import { useRouter } from 'expo-router';
+import api from '@/utils/api';
 
 export default function ProfileScreen() {
   const { logout } = useAuthStore();
   const [user, setUser] = useState(currentUser);
   const [isLoading, setIsLoading] = useState(false);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
   const router = useRouter();
 
   const handleEditProfile = () => {
@@ -68,6 +71,24 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleVerify = async () => {
+    setVerificationLoading(true);
+    setVerificationMessage(null);
+    try {
+      const response = await api.post('/verify/prn', { prn: user.prn });
+      if (response.data && response.data.success) {
+        setVerificationMessage('Verification successful!');
+        setUser({ ...user, isVerified: true });
+      } else {
+        setVerificationMessage(response.data.message || 'Verification failed.');
+      }
+    } catch (error: any) {
+      setVerificationMessage(error.response?.data?.message || 'Verification failed.');
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -87,6 +108,29 @@ export default function ProfileScreen() {
         </View>
         
         <Text style={styles.name}>{user.name}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          {user.isVerified ? (
+            <>
+              <CheckCircle size={18} color={Colors.success} style={{ marginRight: 4 }} />
+              <Text style={styles.verifiedText}>Verified</Text>
+            </>
+          ) : (
+            <>
+              <XCircle size={18} color={Colors.error} style={{ marginRight: 4 }} />
+              <Text style={styles.notVerifiedText}>Not Verified</Text>
+              <Button
+                title={verificationLoading ? 'Verifying...' : 'Verify Now'}
+                onPress={handleVerify}
+                disabled={verificationLoading}
+                style={{ marginLeft: 8 }}
+                small
+              />
+            </>
+          )}
+        </View>
+        {verificationMessage && (
+          <Text style={{ color: user.isVerified ? Colors.success : Colors.error, marginBottom: 8 }}>{verificationMessage}</Text>
+        )}
         <Text style={styles.role}>{user.role}</Text>
         
         {user.role === 'student' && (
@@ -267,5 +311,15 @@ const styles = StyleSheet.create({
     width: 1,
     backgroundColor: Colors.border,
     marginHorizontal: 8,
+  },
+  verifiedText: {
+    color: Colors.success,
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  notVerifiedText: {
+    color: Colors.error,
+    fontWeight: '600',
+    marginRight: 8,
   },
 });

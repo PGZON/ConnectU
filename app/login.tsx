@@ -1,22 +1,74 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Button from '@/components/Button';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Eye, EyeOff } from 'lucide-react-native';
+import api from '@/utils/api';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, isLoading, error } = useAuthStore();
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotStatus, setForgotStatus] = useState<string|null>(null);
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  // Clear any stored tokens on mount
+  useEffect(() => {
+    AsyncStorage.multiRemove(['auth_token', 'refresh_token'])
+      .catch(error => console.error('Error clearing tokens:', error));
+  }, []);
 
   const handleLogin = async () => {
-    await login(email, password);
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
+      Alert.alert('Error', 'Please enter both email and password');
+      return;
+    }
+
+    if (!trimmedEmail.includes('@')) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    try {
+      console.log('LoginScreen: Attempting login with email:', trimmedEmail);
+      await login(trimmedEmail, trimmedPassword);
+      console.log('LoginScreen: Login successful');
+      // Login successful - navigation will be handled by AuthWrapper
+    } catch (error) {
+      console.error('LoginScreen: Login error:', error);
+      Alert.alert(
+        'Login Failed',
+        error instanceof Error 
+          ? error.message 
+          : 'An error occurred during login. Please try again.'
+      );
+    }
   };
 
   const handleSignup = () => {
     router.push('/signup');
+  };
+
+  const handleForgotPassword = async () => {
+    setForgotLoading(true);
+    setForgotStatus(null);
+    try {
+      const res = await api.forgotPassword(forgotEmail.trim());
+      setForgotStatus(res.data?.message || 'Check your email for reset instructions.');
+    } catch (e: any) {
+      setForgotStatus(e?.message || 'Failed to send reset email.');
+    }
+    setForgotLoading(false);
   };
 
   return (
@@ -52,22 +104,39 @@ export default function LoginScreen() {
               placeholderTextColor={Colors.textSecondary}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoComplete="email"
+              textContentType="emailAddress"
             />
           </View>
           
           <View style={styles.formGroup}>
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Enter your password"
-              placeholderTextColor={Colors.textSecondary}
-              secureTextEntry
-            />
+            <View style={{ position: 'relative' }}>
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter your password"
+                placeholderTextColor={Colors.textSecondary}
+                secureTextEntry={!showPassword}
+                autoComplete="password"
+                textContentType="password"
+              />
+              <TouchableOpacity
+                style={{ position: 'absolute', right: 12, top: 12 }}
+                onPress={() => setShowPassword((prev) => !prev)}
+                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <EyeOff size={20} color={Colors.textSecondary} />
+                ) : (
+                  <Eye size={20} color={Colors.textSecondary} />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
           
-          <TouchableOpacity style={styles.forgotPassword}>
+          <TouchableOpacity style={styles.forgotPassword} onPress={() => setShowForgot(true)}>
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
           
@@ -88,6 +157,24 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      {showForgot && (
+        <View style={{ backgroundColor: 'rgba(0,0,0,0.5)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
+          <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: '90%' }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>Reset Password</Text>
+            <TextInput
+              style={[styles.input, { marginBottom: 12 }]}
+              placeholder="Enter your email"
+              value={forgotEmail}
+              onChangeText={setForgotEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+            <Button title={forgotLoading ? 'Sending...' : 'Send Reset Link'} onPress={handleForgotPassword} disabled={forgotLoading || !forgotEmail} />
+            {forgotStatus && <Text style={{ color: Colors.primary, marginTop: 8 }}>{forgotStatus}</Text>}
+            <TouchableOpacity onPress={() => setShowForgot(false)} style={{ marginTop: 16 }}><Text style={{ color: Colors.error, textAlign: 'center' }}>Close</Text></TouchableOpacity>
+          </View>
+        </View>
+      )}
     </>
   );
 }

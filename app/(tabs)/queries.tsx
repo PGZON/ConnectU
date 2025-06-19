@@ -5,17 +5,27 @@ import QueryCard from '@/components/QueryCard';
 import Colors from '@/constants/colors';
 import { useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
+import { useAuthStore } from '@/store/authStore';
 
 export default function QueriesScreen() {
   const { queries, isLoading, fetchQueries } = useQueryStore();
+  const { isAuthenticated } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    fetchQueries();
-  }, [fetchQueries]);
+    // Only fetch queries if user is authenticated
+    if (isAuthenticated) {
+      console.log('QueriesScreen - fetching queries, user authenticated');
+      fetchQueries();
+    } else {
+      console.log('QueriesScreen - skipping fetchQueries, user not authenticated');
+    }
+  }, [fetchQueries, isAuthenticated]);
 
   const handleRefresh = async () => {
+    if (!isAuthenticated) return;
+    
     setRefreshing(true);
     await fetchQueries();
     setRefreshing(false);

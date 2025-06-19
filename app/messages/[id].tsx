@@ -1,20 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, TextInput, FlatList, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, TextInput, FlatList, KeyboardAvoidingView, Platform, TouchableOpacity, Text } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { useMessageStore } from '@/store/messageStore';
+import { useAuthStore } from '@/store/authStore';
 import { mockUsers } from '@/mocks/users';
 import Colors from '@/constants/colors';
 import MessageBubble from '@/components/MessageBubble';
 import { Send } from 'lucide-react-native';
 import Avatar from '@/components/Avatar';
+import { socket } from '@/store/messageStore';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { messages, fetchMessages, sendMessage, markAsRead } = useMessageStore();
+  const { messages, fetchMessages, sendMessage, markAsRead, typing, startTyping, stopTyping, error } = useMessageStore();
+  const { user } = useAuthStore();
   const [messageText, setMessageText] = useState('');
-  const [user, setUser] = useState(mockUsers.find(u => u.id === id));
+  const [chatUser, setChatUser] = useState(mockUsers.find(u => u.id === id));
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const userMessages = messages[id] || [];
 
@@ -24,6 +29,19 @@ export default function ChatScreen() {
       markAsRead(id);
     }
   }, [id, fetchMessages, markAsRead]);
+
+  const handleInputChange = (text: string) => {
+    setMessageText(text);
+    if (!isTyping) {
+      setIsTyping(true);
+      startTyping(id);
+    }
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
+    typingTimeout.current = setTimeout(() => {
+      setIsTyping(false);
+      stopTyping(id);
+    }, 1200);
+  };
 
   const handleSend = () => {
     if (messageText.trim() === '') return;
@@ -43,13 +61,13 @@ export default function ChatScreen() {
     <>
       <Stack.Screen 
         options={{
-          title: user?.name || 'Chat',
+          title: chatUser?.name || 'Chat',
           headerLeft: () => (
             <TouchableOpacity 
               onPress={() => router.back()}
               style={{ marginLeft: 8 }}
             >
-              <Avatar uri={user?.profileImageUrl} size={32} />
+              <Avatar uri={chatUser?.profileImageUrl} size={32} />
             </TouchableOpacity>
           ),
         }} 
@@ -63,11 +81,11 @@ export default function ChatScreen() {
         <FlatList
           ref={flatListRef}
           data={userMessages}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.id || item.timestamp}
           renderItem={({ item }) => (
             <MessageBubble 
               message={item} 
-              isCurrentUser={item.senderId === '1'} // Assuming current user id is '1'
+              isCurrentUser={item.senderId === user?.id}
             />
           )}
           contentContainerStyle={styles.messagesList}
@@ -78,12 +96,25 @@ export default function ChatScreen() {
           }}
         />
         
+        {/* Typing indicator */}
+        {typing && typing[id] && (
+          <View style={{ paddingLeft: 16, paddingBottom: 4 }}>
+            <Text style={{ color: Colors.textSecondary, fontStyle: 'italic' }}>{chatUser?.name || 'User'} is typing...</Text>
+          </View>
+        )}
+        {/* Connection status */}
+        {error && (
+          <View style={{ paddingLeft: 16, paddingBottom: 4 }}>
+            <Text style={{ color: Colors.error, fontStyle: 'italic' }}>Offline</Text>
+          </View>
+        )}
+        
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
             placeholder="Type a message..."
             value={messageText}
-            onChangeText={setMessageText}
+            onChangeText={handleInputChange}
             multiline
             maxLength={500}
             placeholderTextColor={Colors.textSecondary}

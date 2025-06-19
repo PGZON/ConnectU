@@ -5,6 +5,9 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StatusBar } from 'expo-status-bar';
+import { AuthWrapper } from '@/components/AuthWrapper';
+import ResetPasswordScreen from './reset-password';
 
 export const unstable_settings = {
   initialRouteName: "index",
@@ -14,6 +17,7 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const { checkAuth } = useAuthStore();
   const [loaded, error] = useFonts({
     ...FontAwesome.font,
   });
@@ -30,77 +34,45 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
+  useEffect(() => {
+    // Check for existing authentication on app startup
+    checkAuth();
+  }, []);
+
   if (!loaded) {
     return null;
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <RootLayoutNav />
-    </GestureHandlerRootView>
+    <>
+      <StatusBar style="auto" />
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <AuthWrapper>
+          <RootLayoutNav />
+        </AuthWrapper>
+      </GestureHandlerRootView>
+    </>
   );
 }
 
 function RootLayoutNav() {
-  const { isAuthenticated } = useAuthStore();
-
   return (
-    <Stack>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
+    <Stack
+      screenOptions={{
+        headerShown: true,
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="signup" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen 
-        name="messages/[id]" 
-        options={{ 
-          headerShown: true,
-          headerTitle: "Chat",
-        }} 
-      />
-      <Stack.Screen 
-        name="post/[id]" 
-        options={{ 
-          headerShown: true,
-          headerTitle: "Post Details",
-        }} 
-      />
-      <Stack.Screen 
-        name="profile/[id]" 
-        options={{ 
-          headerShown: true,
-          headerTitle: "Profile",
-        }} 
-      />
-      <Stack.Screen 
-        name="query/[id]" 
-        options={{ 
-          headerShown: true,
-          headerTitle: "Query Details",
-        }} 
-      />
-      <Stack.Screen 
-        name="create-post" 
-        options={{ 
-          headerShown: true,
-          headerTitle: "Create Post",
-          presentation: "modal",
-        }} 
-      />
-      <Stack.Screen 
-        name="ask-query" 
-        options={{ 
-          headerShown: true,
-          headerTitle: "Ask Query",
-          presentation: "modal",
-        }} 
-      />
-      <Stack.Screen 
-        name="edit-profile" 
-        options={{ 
-          headerShown: true,
-          headerTitle: "Edit Profile",
-        }} 
-      />
+      <Stack.Screen name="create-post" />
+      <Stack.Screen name="ask-query" />
+      <Stack.Screen name="edit-profile" />
+      <Stack.Screen name="post/[id]" />
+      <Stack.Screen name="query/[id]" />
+      <Stack.Screen name="profile/[id]" />
+      <Stack.Screen name="messages/[id]" />
+      <Stack.Screen name="reset-password" element={<ResetPasswordScreen />} />
     </Stack>
   );
 }

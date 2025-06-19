@@ -13,6 +13,10 @@ export default function SignupScreen() {
     password: '',
     confirmPassword: '',
     role: 'student' as UserRole,
+    prn: '',
+    alumniId: '',
+    department: '',
+    batch: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { signup, isLoading, error } = useAuthStore();
@@ -55,6 +59,22 @@ export default function SignupScreen() {
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
+
+    if (formData.role === 'student') {
+      if (!formData.prn.trim()) {
+        newErrors.prn = 'PRN is required';
+      }
+      if (!formData.department.trim()) {
+        newErrors.department = 'Department is required';
+      }
+      if (!formData.batch.trim()) {
+        newErrors.batch = 'Batch is required';
+      }
+    } else if (formData.role === 'alumni') {
+      if (!formData.alumniId.trim()) {
+        newErrors.alumniId = 'Alumni ID is required';
+      }
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -62,8 +82,20 @@ export default function SignupScreen() {
 
   const handleSignup = async () => {
     if (!validate()) return;
-    
-    await signup(formData, formData.password);
+    const payload: any = {
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+      role: formData.role,
+    };
+    if (formData.role === 'student') {
+      payload.prn = formData.prn;
+      payload.department = formData.department;
+      payload.batch = formData.batch;
+    } else if (formData.role === 'alumni') {
+      payload.alumniId = formData.alumniId;
+    }
+    await signup(payload, formData.password);
   };
 
   const handleLogin = () => {
@@ -183,6 +215,64 @@ export default function SignupScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Student-specific fields */}
+          {formData.role === 'student' && (
+            <>
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>PRN Number</Text>
+                <TextInput
+                  style={[styles.input, errors.prn && styles.inputError]}
+                  value={formData.prn}
+                  onChangeText={(value) => handleChange('prn', value)}
+                  placeholder="Enter your PRN number"
+                  placeholderTextColor={Colors.textSecondary}
+                  autoCapitalize="characters"
+                />
+                {errors.prn && <Text style={styles.errorText}>{errors.prn}</Text>}
+              </View>
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Department</Text>
+                <TextInput
+                  style={[styles.input, errors.department && styles.inputError]}
+                  value={formData.department}
+                  onChangeText={(value) => handleChange('department', value)}
+                  placeholder="Enter your department/branch"
+                  placeholderTextColor={Colors.textSecondary}
+                />
+                {errors.department && <Text style={styles.errorText}>{errors.department}</Text>}
+              </View>
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Batch (Graduation Year)</Text>
+                <TextInput
+                  style={[styles.input, errors.batch && styles.inputError]}
+                  value={formData.batch}
+                  onChangeText={(value) => handleChange('batch', value)}
+                  placeholder="Enter your batch/graduation year"
+                  placeholderTextColor={Colors.textSecondary}
+                  keyboardType="number-pad"
+                />
+                {errors.batch && <Text style={styles.errorText}>{errors.batch}</Text>}
+              </View>
+            </>
+          )}
+
+          {/* Alumni-specific fields */}
+          {formData.role === 'alumni' && (
+            <>
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Alumni ID</Text>
+                <TextInput
+                  style={[styles.input, errors.alumniId && styles.inputError]}
+                  value={formData.alumniId}
+                  onChangeText={(value) => handleChange('alumniId', value)}
+                  placeholder="Enter your Alumni ID"
+                  placeholderTextColor={Colors.textSecondary}
+                />
+                {errors.alumniId && <Text style={styles.errorText}>{errors.alumniId}</Text>}
+              </View>
+            </>
+          )}
           
           <Button
             title="Sign Up"

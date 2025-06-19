@@ -6,7 +6,7 @@ import { mockUsers } from '@/mocks/users';
 import { useConnectionStore } from '@/store/connectionStore';
 import Colors from '@/constants/colors';
 import Button from '@/components/Button';
-import { MessageCircle } from 'lucide-react-native';
+import { MessageCircle, CheckCircle, XCircle } from 'lucide-react-native';
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -55,6 +55,19 @@ export default function UserProfileScreen() {
           />
           
           <Text style={styles.name}>{user.name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            {user.isVerified ? (
+              <>
+                <CheckCircle size={18} color={Colors.success} style={{ marginRight: 4 }} />
+                <Text style={styles.verifiedText}>Verified</Text>
+              </>
+            ) : (
+              <>
+                <XCircle size={18} color={Colors.error} style={{ marginRight: 4 }} />
+                <Text style={styles.notVerifiedText}>Not Verified</Text>
+              </>
+            )}
+          </View>
           <Text style={styles.role}>{user.role}</Text>
           
           {user.role === 'student' && (
@@ -257,5 +270,15 @@ const styles = StyleSheet.create({
   graduationYear: {
     fontSize: 12,
     color: Colors.textSecondary,
+  },
+  verifiedText: {
+    color: Colors.success,
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  notVerifiedText: {
+    color: Colors.error,
+    fontWeight: '600',
+    marginRight: 8,
   },
 });

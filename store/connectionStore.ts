@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Connection, User } from '@/types';
-import { mockConnections } from '@/mocks/connections';
-import { mockUsers } from '@/mocks/users';
+import { api } from '@/utils/api';
+import { useAuthStore } from './authStore';
 
 interface ConnectionState {
   connections: Connection[];
@@ -9,12 +9,17 @@ interface ConnectionState {
   isLoading: boolean;
   error: string | null;
   fetchConnections: () => Promise<void>;
-  sendConnectionRequest: (userId: string) => Promise<void>;
+  sendConnectionRequest: (alumniId: string, message?: string) => Promise<void>;
   acceptConnectionRequest: (connectionId: string) => Promise<void>;
   declineConnectionRequest: (connectionId: string) => Promise<void>;
   getConnectionStatus: (userId: string) => 'none' | 'pending' | 'accepted';
   getConnectedUsers: () => User[];
 }
+
+const getUserId = () => {
+  const { user } = useAuthStore.getState();
+  return user?.id || user?._id || null;
+};
 
 export const useConnectionStore = create<ConnectionState>((set, get) => ({
   connections: [],
@@ -23,29 +28,55 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   error: null,
   
   fetchConnections: async () => {
+    // Guard: Ensure userId is available before making API call
+    const userId = getUserId();
+    if (!userId) {
+      console.warn('fetchConnections: User ID is undefined! Delaying API call until user is loaded.');
+      return;
+    }
+
     set({ isLoading: true, error: null });
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await api.getConnections(userId, 1, 100);
       
-      const currentUserId = '1'; // Assuming current user id is '1'
-      
-      const connections = mockConnections.filter(
-        conn => (conn.senderId === currentUserId || conn.receiverId === currentUserId) && 
-                conn.status === 'accepted'
-      );
-      
-      const pendingRequests = mockConnections.filter(
-        conn => conn.receiverId === currentUserId && conn.status === 'pending'
-      );
-      
-      set({ 
-        connections, 
-        pendingRequests,
-        isLoading: false 
-      });
+      if (response.success && response.data && Array.isArray(response.data.connections)) {
+        const transformedConnections: Connection[] = response.data.connections.map((conn: any) => ({
+          id: conn._id,
+          senderId: conn.student._id,
+          sender: {
+            id: conn.student._id,
+            name: conn.student.name,
+            email: conn.student.email,
+            role: conn.student.role,
+            profileImageUrl: conn.student.profileImageUrl,
+          },
+          receiverId: conn.alumni._id,
+          receiver: {
+            id: conn.alumni._id,
+            name: conn.alumni.name,
+            email: conn.alumni.email,
+            role: conn.alumni.role,
+            profileImageUrl: conn.alumni.profileImageUrl,
+          },
+          status: conn.status,
+          createdAt: conn.createdAt,
+          updatedAt: conn.updatedAt,
+        }));
+
+        const acceptedConnections = transformedConnections.filter(conn => conn.status === 'accepted');
+        const pendingConnections = transformedConnections.filter(conn => conn.status === 'pending');
+        
+        set({ 
+          connections: acceptedConnections, 
+          pendingRequests: pendingConnections,
+          isLoading: false 
+        });
+      } else {
+        throw new Error(response.message || 'Failed to fetch connections');
+      }
     } catch (error) {
+      console.error('fetchConnections error:', error);
       set({ 
         error: error instanceof Error ? error.message : 'Failed to fetch connections', 
         isLoading: false 
@@ -53,27 +84,24 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     }
   },
   
-  sendConnectionRequest: async (userId) => {
+  sendConnectionRequest: async (alumniId, message) => {
     set({ isLoading: true, error: null });
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const currentUserId = '1'; // Assuming current user id is '1'
-      
-      const newConnection: Connection = {
-        id: `${Date.now()}`,
-        senderId: currentUserId,
-        receiverId: userId,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
+      const requestData = {
+        alumniId,
+        message: message || '',
+        connectionType: 'general',
       };
+
+      const response = await api.sendConnectionRequest(requestData);
       
-      set(state => ({
-        connections: [...state.connections, newConnection],
-        isLoading: false
-      }));
+      if (response.success) {
+        // Refresh connections to get updated list
+        await get().fetchConnections();
+      } else {
+        throw new Error(response.message || 'Failed to send connection request');
+      }
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to send connection request', 
@@ -86,29 +114,14 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     set({ isLoading: true, error: null });
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await api.acceptConnection(connectionId);
       
-      const pendingRequests = get().pendingRequests;
-      const connections = get().connections;
-      
-      const updatedRequest = pendingRequests.find(req => req.id === connectionId);
-      
-      if (!updatedRequest) {
-        throw new Error('Connection request not found');
+      if (response.success) {
+        // Refresh connections to get updated list
+        await get().fetchConnections();
+      } else {
+        throw new Error(response.message || 'Failed to accept connection request');
       }
-      
-      const acceptedConnection: Connection = {
-        ...updatedRequest,
-        status: 'accepted',
-        updatedAt: new Date().toISOString(),
-      };
-      
-      set({
-        connections: [...connections, acceptedConnection],
-        pendingRequests: pendingRequests.filter(req => req.id !== connectionId),
-        isLoading: false
-      });
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to accept connection request', 
@@ -121,15 +134,14 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     set({ isLoading: true, error: null });
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await api.rejectConnection(connectionId);
       
-      const pendingRequests = get().pendingRequests;
-      
-      set({
-        pendingRequests: pendingRequests.filter(req => req.id !== connectionId),
-        isLoading: false
-      });
+      if (response.success) {
+        // Refresh connections to get updated list
+        await get().fetchConnections();
+      } else {
+        throw new Error(response.message || 'Failed to decline connection request');
+      }
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to decline connection request', 
@@ -139,13 +151,15 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   },
   
   getConnectionStatus: (userId) => {
-    const currentUserId = '1'; // Assuming current user id is '1'
+    const currentUser = useAuthStore.getState().user;
+    if (!currentUser) return 'none';
+
     const { connections, pendingRequests } = get();
     
     const acceptedConnection = connections.find(
       conn => 
-        (conn.senderId === currentUserId && conn.receiverId === userId) || 
-        (conn.senderId === userId && conn.receiverId === currentUserId)
+        (conn.senderId === currentUser.id && conn.receiverId === userId) || 
+        (conn.senderId === userId && conn.receiverId === currentUser.id)
     );
     
     if (acceptedConnection) {
@@ -154,8 +168,8 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     
     const pendingConnection = [...connections, ...pendingRequests].find(
       conn => 
-        (conn.senderId === currentUserId && conn.receiverId === userId) || 
-        (conn.senderId === userId && conn.receiverId === currentUserId)
+        (conn.senderId === currentUser.id && conn.receiverId === userId) || 
+        (conn.senderId === userId && conn.receiverId === currentUser.id)
     );
     
     if (pendingConnection) {
@@ -166,15 +180,31 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   },
   
   getConnectedUsers: () => {
-    const currentUserId = '1'; // Assuming current user id is '1'
+    const currentUser = useAuthStore.getState().user;
+    if (!currentUser) return [];
+
     const { connections } = get();
     
     const connectedUserIds = connections
       .filter(conn => conn.status === 'accepted')
       .map(conn => 
-        conn.senderId === currentUserId ? conn.receiverId : conn.senderId
+        conn.senderId === currentUser.id ? conn.receiverId : conn.senderId
       );
     
-    return mockUsers.filter(user => connectedUserIds.includes(user.id));
+    // Extract unique users from connections
+    const connectedUsers: User[] = [];
+    const seenIds = new Set();
+    
+    connections.forEach(conn => {
+      if (conn.status === 'accepted') {
+        const otherUser = conn.senderId === currentUser.id ? conn.receiver : conn.sender;
+        if (otherUser && !seenIds.has(otherUser.id)) {
+          connectedUsers.push(otherUser);
+          seenIds.add(otherUser.id);
+        }
+      }
+    });
+    
+    return connectedUsers;
   },
 }));

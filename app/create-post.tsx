@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, Platform, KeyboardAvoidingView, ScrollView, ActivityIndicator } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useFeedStore } from '@/store/feedStore';
@@ -12,6 +12,8 @@ export default function CreatePostScreen() {
   const [image, setImage] = useState<string | null>(null);
   const { createPost, isLoading } = useFeedStore();
   const router = useRouter();
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
 
   const handlePickImage = async () => {
     if (Platform.OS !== 'web') {
@@ -39,11 +41,28 @@ export default function CreatePostScreen() {
     setImage(null);
   };
 
-  const handlePost = async () => {
+  const handlePost = () => {
     if (caption.trim() === '') return;
-    
-    await createPost(caption, image || undefined, image ? 'image' : undefined);
-    router.back();
+    setUploadProgress(0);
+    setUploadStatus(null);
+    createPost(
+      caption,
+      image || undefined,
+      image ? 'image' : undefined,
+      (percent) => setUploadProgress(percent)
+    )
+      .then(() => {
+        setUploadStatus('Upload successful!');
+        setTimeout(() => {
+          setUploadProgress(null);
+          setUploadStatus(null);
+          router.back();
+        }, 1000);
+      })
+      .catch(() => {
+        setUploadStatus('Upload failed. Please try again.');
+        setUploadProgress(null);
+      });
   };
 
   return (
@@ -100,6 +119,16 @@ export default function CreatePostScreen() {
             <ImageIcon size={24} color={Colors.primary} />
             <Text style={styles.addImageText}>Add Photo</Text>
           </TouchableOpacity>
+          
+          {uploadProgress !== null && (
+            <View style={{ alignItems: 'center', marginVertical: 16 }}>
+              <Text style={{ fontSize: 16, color: Colors.primary }}>Uploading: {uploadProgress}%</Text>
+              <ActivityIndicator size="large" color={Colors.primary} />
+            </View>
+          )}
+          {uploadStatus && (
+            <Text style={{ color: uploadStatus.includes('successful') ? 'green' : 'red', textAlign: 'center', marginBottom: 8 }}>{uploadStatus}</Text>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </>

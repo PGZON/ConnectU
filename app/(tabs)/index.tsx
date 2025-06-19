@@ -6,17 +6,27 @@ import Colors from '@/constants/colors';
 import { useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
+import { useAuthStore } from '@/store/authStore';
 
 export default function FeedScreen() {
   const { posts, isLoading, fetchPosts, likePost } = useFeedStore();
+  const { isAuthenticated } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    // Only fetch posts if user is authenticated
+    if (isAuthenticated) {
+      console.log('FeedScreen - fetching posts, user authenticated');
+      fetchPosts();
+    } else {
+      console.log('FeedScreen - skipping fetchPosts, user not authenticated');
+    }
+  }, [fetchPosts, isAuthenticated]);
 
   const handleRefresh = async () => {
+    if (!isAuthenticated) return;
+    
     setRefreshing(true);
     await fetchPosts();
     setRefreshing(false);

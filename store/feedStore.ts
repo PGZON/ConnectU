@@ -1,54 +1,144 @@
 import { create } from 'zustand';
 import { Post } from '@/types';
-import { mockPosts } from '@/mocks/posts';
+import { api } from '@/utils/api';
+import { useAuthStore } from './authStore';
 
 interface FeedState {
   posts: Post[];
   isLoading: boolean;
   error: string | null;
-  fetchPosts: () => Promise<void>;
+  hasMore: boolean;
+  currentPage: number;
+  fetchPosts: (page?: number) => Promise<void>;
   likePost: (postId: string) => Promise<void>;
   addComment: (postId: string, text: string) => Promise<void>;
-  createPost: (caption: string, mediaUrl?: string, mediaType?: 'image' | 'video') => Promise<void>;
+  createPost: (caption: string, mediaUri?: string, mediaType?: 'image' | 'video', onProgress?: (progress: number) => void) => Promise<void>;
+  refreshPosts: () => Promise<void>;
 }
 
 export const useFeedStore = create<FeedState>((set, get) => ({
   posts: [],
   isLoading: false,
   error: null,
+  hasMore: true,
+  currentPage: 1,
   
-  fetchPosts: async () => {
-    set({ isLoading: true, error: null });
+  fetchPosts: async (page = 1) => {
+    // Check if user is authenticated before making API calls
+    const { isAuthenticated } = useAuthStore.getState();
+    if (!isAuthenticated) {
+      console.log('FeedScreen - skipping fetchPosts, user not authenticated');
+      return;
+    }
+
+    if (page === 1) {
+      set({ isLoading: true, error: null });
+    }
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('Fetching posts, page:', page);
+      const response = await api.getPosts(page, 20);
       
-      set({ posts: mockPosts, isLoading: false });
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to fetch posts');
+      }
+
+      if (!response.data || !Array.isArray(response.data.posts)) {
+        console.error('Invalid posts response:', response);
+        throw new Error('Invalid response format');
+      }
+
+      console.log('Posts fetched successfully:', {
+        count: response.data.posts.length,
+        hasMore: response.data.pagination?.hasNextPage
+      });
+      
+      const transformedPosts: Post[] = response.data.posts.map((post: any) => ({
+        id: post._id,
+        userId: post.author?._id,
+        user: post.author ? {
+          id: post.author._id,
+          name: post.author.name,
+          email: post.author.email,
+          role: post.author.role,
+          profileImageUrl: post.author.profileImageUrl,
+        } : null,
+        caption: post.caption || '',
+        mediaUrl: post.media?.[0]?.url || null,
+        mediaType: post.media?.[0]?.type || null,
+        likes: Array.isArray(post.likes) ? post.likes.map((like: any) => like._id || like) : [],
+        comments: Array.isArray(post.comments) ? post.comments.map((comment: any) => ({
+          id: comment._id,
+          userId: comment.user?._id,
+          user: comment.user ? {
+            id: comment.user._id,
+            name: comment.user.name,
+            email: comment.user.email,
+            role: comment.user.role,
+            profileImageUrl: comment.user.profileImageUrl,
+          } : null,
+          text: comment.content || '',
+          createdAt: comment.createdAt,
+        })) : [],
+        createdAt: post.createdAt,
+      }));
+
+      if (page === 1) {
+        set({ 
+          posts: transformedPosts, 
+          isLoading: false,
+          currentPage: 1,
+          hasMore: response.data.pagination?.hasNextPage || false,
+          error: null
+        });
+      } else {
+        set({ 
+          posts: [...get().posts, ...transformedPosts],
+          currentPage: page,
+          hasMore: response.data.pagination?.hasNextPage || false,
+          error: null
+        });
+      }
     } catch (error) {
+      console.error('Error fetching posts:', error);
       set({ 
-        error: error instanceof Error ? error.message : 'Failed to fetch posts', 
-        isLoading: false 
+        error: error instanceof Error ? error.message : 'Failed to fetch posts',
+        isLoading: false,
+        hasMore: false
       });
     }
+  },
+
+  refreshPosts: async () => {
+    await get().fetchPosts(1);
   },
   
   likePost: async (postId) => {
     try {
-      const currentPosts = get().posts;
-      const updatedPosts = currentPosts.map(post => {
-        if (post.id === postId) {
-          const currentUserLiked = post.likes.includes('1'); // Assuming current user id is '1'
-          const updatedLikes = currentUserLiked
-            ? post.likes.filter(id => id !== '1')
-            : [...post.likes, '1'];
-          
-          return { ...post, likes: updatedLikes };
-        }
-        return post;
-      });
+      const response = await api.likePost(postId);
       
-      set({ posts: updatedPosts });
+      if (response.success) {
+        const currentPosts = get().posts;
+        const currentUser = useAuthStore.getState().user;
+        
+        if (currentUser) {
+          const updatedPosts = currentPosts.map(post => {
+            if (post.id === postId) {
+              const currentUserLiked = post.likes.includes(currentUser.id);
+              const updatedLikes = currentUserLiked
+                ? post.likes.filter(id => id !== currentUser.id)
+                : [...post.likes, currentUser.id];
+              
+              return { ...post, likes: updatedLikes };
+            }
+            return post;
+          });
+          
+          set({ posts: updatedPosts });
+        }
+      } else {
+        throw new Error(response.message || 'Failed to like post');
+      }
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to like post' 
@@ -58,32 +148,42 @@ export const useFeedStore = create<FeedState>((set, get) => ({
   
   addComment: async (postId, text) => {
     try {
-      const currentPosts = get().posts;
-      const updatedPosts = currentPosts.map(post => {
-        if (post.id === postId) {
-          const newComment = {
-            id: `${Date.now()}`,
-            userId: '1', // Assuming current user id is '1'
-            user: {
-              id: '1',
-              name: 'Alex Johnson',
-              email: 'alex@university.edu',
-              role: 'student',
-              profileImageUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
-            },
-            text,
-            createdAt: new Date().toISOString(),
-          };
-          
-          return { 
-            ...post, 
-            comments: [...post.comments, newComment] 
-          };
-        }
-        return post;
-      });
+      const response = await api.addComment(postId, text);
       
-      set({ posts: updatedPosts });
+      if (response.success) {
+        const currentPosts = get().posts;
+        const currentUser = useAuthStore.getState().user;
+        
+        if (currentUser) {
+          const updatedPosts = currentPosts.map(post => {
+            if (post.id === postId) {
+              const newComment = {
+                id: `${Date.now()}`,
+                userId: currentUser.id,
+                user: {
+                  id: currentUser.id,
+                  name: currentUser.name,
+                  email: currentUser.email,
+                  role: currentUser.role,
+                  profileImageUrl: currentUser.profileImageUrl,
+                },
+                text,
+                createdAt: new Date().toISOString(),
+              };
+              
+              return { 
+                ...post, 
+                comments: [...post.comments, newComment] 
+              };
+            }
+            return post;
+          });
+          
+          set({ posts: updatedPosts });
+        }
+      } else {
+        throw new Error(response.message || 'Failed to add comment');
+      }
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to add comment' 
@@ -91,41 +191,23 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     }
   },
   
-  createPost: async (caption, mediaUrl, mediaType) => {
+  createPost: async (caption, mediaUri, mediaType, onProgress) => {
     set({ isLoading: true, error: null });
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newPost: Post = {
-        id: `${Date.now()}`,
-        userId: '1', // Assuming current user id is '1'
-        user: {
-          id: '1',
-          name: 'Alex Johnson',
-          email: 'alex@university.edu',
-          role: 'student',
-          profileImageUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
-        },
-        caption,
-        mediaUrl,
-        mediaType,
-        likes: [],
-        comments: [],
-        createdAt: new Date().toISOString(),
-      };
-      
-      const currentPosts = get().posts;
-      set({ 
-        posts: [newPost, ...currentPosts],
-        isLoading: false 
-      });
+      let response;
+      if (mediaUri) {
+        response = await api.createPostWithMedia(caption, mediaUri, mediaType || 'image', onProgress);
+      } else {
+        response = await api.createPost({ caption });
+      }
+      if (response.data && response.data.success && response.data.data) {
+        await get().refreshPosts();
+        set({ isLoading: false });
+      } else {
+        throw new Error(response.data?.message || 'Failed to create post');
+      }
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to create post', 
-        isLoading: false 
-      });
+      set({ error: error instanceof Error ? error.message : 'Failed to create post', isLoading: false });
     }
   },
 }));
