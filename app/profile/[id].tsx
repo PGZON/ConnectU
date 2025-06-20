@@ -1,37 +1,118 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { mockUsers } from '@/mocks/users';
 import { useConnectionStore } from '@/store/connectionStore';
 import Colors from '@/constants/colors';
 import Button from '@/components/Button';
-import { MessageCircle, CheckCircle, XCircle } from 'lucide-react-native';
+import { MessageCircle, CheckCircle, XCircle, Camera } from 'lucide-react-native';
+import { api } from '@/utils/api';
+import PostCard from '@/components/PostCard';
 
 export default function UserProfileScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const [user, setUser] = useState(mockUsers.find(u => u.id === id));
+  const params = useLocalSearchParams<{ id?: string }>();
+  const id = params.id;
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { getConnectionStatus, sendConnectionRequest } = useConnectionStore();
   const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'accepted'>('none');
   const router = useRouter();
+  const [posts, setPosts] = useState<any[]>([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+
+  const isOwnProfile = !id;
 
   useEffect(() => {
-    if (id) {
-      setUser(mockUsers.find(u => u.id === id));
-      setConnectionStatus(getConnectionStatus(id));
+    let isMounted = true;
+    async function fetchUser() {
+      setLoading(true);
+      setError(null);
+      try {
+        let res;
+        if (id) {
+          res = await api.getUserProfile(id);
+        } else {
+          res = await api.getMe();
+        }
+        if (res.success && res.data) {
+          if (isMounted) setUser(res.data);
+        } else {
+          if (isMounted) setError('User not found');
+        }
+      } catch (err: any) {
+        if (isMounted) setError('User not found');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     }
+    async function fetchPosts() {
+      setPostsLoading(true);
+      try {
+        const userId = id || user?.id;
+        if (userId) {
+          const res = await api.getUserPosts(userId);
+          if (res.success && res.data && res.data.posts) {
+            setPosts(res.data.posts);
+          } else {
+            setPosts([]);
+          }
+        }
+      } catch {
+        setPosts([]);
+      } finally {
+        setPostsLoading(false);
+      }
+    }
+    fetchUser();
+    if (id) {
+      setConnectionStatus(getConnectionStatus(id));
+    } else {
+      setConnectionStatus('accepted');
+    }
+    return () => { isMounted = false; };
   }, [id, getConnectionStatus]);
 
+  useEffect(() => {
+    if (user) {
+      const userId = id || user.id;
+      if (userId) {
+        setPostsLoading(true);
+        api.getUserPosts(userId).then(res => {
+          if (res.success && res.data && res.data.posts) {
+            setPosts(res.data.posts);
+          } else {
+            setPosts([]);
+          }
+          setPostsLoading(false);
+        }).catch(() => {
+          setPosts([]);
+          setPostsLoading(false);
+        });
+      }
+    }
+  }, [user, id]);
+
   const handleConnect = () => {
+    if (!id) return;
     sendConnectionRequest(id);
     setConnectionStatus('pending');
   };
 
   const handleMessage = () => {
+    if (!id) return;
     router.push(`/messages/${id}`);
   };
 
-  if (!user) {
+  if (loading) {
+    return (
+      <View style={styles.notFoundContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (error || !user) {
     return (
       <View style={styles.notFoundContainer}>
         <Text style={styles.notFoundText}>User not found</Text>
@@ -48,11 +129,20 @@ export default function UserProfileScreen() {
       
       <ScrollView style={styles.container}>
         <View style={styles.header}>
-          <Image
-            source={{ uri: user.profileImageUrl }}
-            style={styles.profileImage}
-            contentFit="cover"
-          />
+          <View style={{ position: 'relative' }}>
+            <Image
+              source={{ uri: user.profileImageUrl }}
+              style={styles.profileImage}
+              contentFit="cover"
+            />
+            {isOwnProfile && (
+              <View style={styles.cameraIconContainer}>
+                <TouchableOpacity>
+                  <Camera size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
           
           <Text style={styles.name}>{user.name}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -82,34 +172,58 @@ export default function UserProfileScreen() {
             </Text>
           )}
           
-          <View style={styles.actionsContainer}>
-            {connectionStatus === 'none' && (
-              <Button
-                title="Connect"
-                onPress={handleConnect}
-                variant="primary"
-                style={styles.actionButton}
-              />
-            )}
-            
-            {connectionStatus === 'pending' && (
-              <Button
-                title="Request Pending"
-                disabled={true}
-                style={styles.actionButton}
-              />
-            )}
-            
-            {connectionStatus === 'accepted' && (
-              <Button
-                title="Message"
-                onPress={handleMessage}
-                variant="primary"
-                style={styles.actionButton}
-                icon={<MessageCircle size={16} color="#FFFFFF" style={{ marginRight: 8 }} />}
-              />
-            )}
+          {/* Stats Row */}
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statNumber}>{user.connectionsCount ?? 0}</Text>
+              <Text style={styles.statLabel}>Connections</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statNumber}>{posts.length}</Text>
+              <Text style={styles.statLabel}>Posts</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statNumber}>{user.queriesCount ?? 0}</Text>
+              <Text style={styles.statLabel}>Queries</Text>
+            </View>
           </View>
+          
+          {/* Buttons */}
+          {isOwnProfile ? (
+            <>
+              <Button title="Edit Profile" onPress={() => router.push('/edit-profile')} style={{ marginTop: 12 }} />
+              <Button title="Logout" onPress={() => router.push('/login')} variant="danger" style={{ marginTop: 8 }} />
+            </>
+          ) : (
+            <View style={styles.actionsContainer}>
+              {connectionStatus === 'none' && (
+                <Button
+                  title="Connect"
+                  onPress={handleConnect}
+                  variant="primary"
+                  style={styles.actionButton}
+                />
+              )}
+              
+              {connectionStatus === 'pending' && (
+                <Button
+                  title="Request Pending"
+                  disabled={true}
+                  style={styles.actionButton}
+                />
+              )}
+              
+              {connectionStatus === 'accepted' && (
+                <Button
+                  title="Message"
+                  onPress={handleMessage}
+                  variant="primary"
+                  style={styles.actionButton}
+                  icon={<MessageCircle size={16} color="#FFFFFF" style={{ marginRight: 8 }} />}
+                />
+              )}
+            </View>
+          )}
         </View>
         
         <View style={styles.bioSection}>
@@ -138,6 +252,24 @@ export default function UserProfileScreen() {
             </View>
           </View>
         )}
+        
+        {/* Posts Grid */}
+        <View style={styles.postsSection}>
+          <Text style={styles.sectionTitle}>Posts</Text>
+          {postsLoading ? (
+            <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 16 }} />
+          ) : posts.length === 0 ? (
+            <Text style={{ textAlign: 'center', color: Colors.textSecondary, marginTop: 16 }}>No posts yet.</Text>
+          ) : (
+            <FlatList
+              data={posts}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => <PostCard post={item} />}
+              scrollEnabled={false}
+              contentContainerStyle={{ paddingBottom: 24 }}
+            />
+          )}
+        </View>
       </ScrollView>
     </>
   );
@@ -280,5 +412,41 @@ const styles = StyleSheet.create({
     color: Colors.error,
     fontWeight: '600',
     marginRight: 8,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  statBox: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.text,
+  },
+  statLabel: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  cameraIconContainer: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: Colors.primary,
+    borderRadius: 20,
+    padding: 4,
+  },
+  cameraIcon: {
+    width: 24,
+    height: 24,
+    tintColor: '#fff',
+  },
+  postsSection: {
+    marginTop: 24,
+    marginHorizontal: 16,
   },
 });

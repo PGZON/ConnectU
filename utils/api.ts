@@ -414,6 +414,10 @@ class ApiClient {
       xhr.send(formData);
     });
   }
+
+  async getUserPosts(userId: string, page = 1, limit = 20): Promise<PaginatedResponse<any>> {
+    return this.request(`/posts/user/${userId}?page=${page}&limit=${limit}`);
+  }
 }
 
 // Create and export API instance
