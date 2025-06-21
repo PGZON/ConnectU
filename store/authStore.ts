@@ -75,16 +75,16 @@ export const useAuthStore = create<AuthState>()(
           }
 
           const user: User = {
-            id: userData._id,
+            id: userData._id || userData.id,
             name: userData.name,
             email: userData.email,
             role: userData.role,
             profileImageUrl: userData.profileImageUrl,
             bio: userData.bio,
             department: userData.department,
-            graduationYear: userData.graduationYear,
-            company: userData.currentCompany,
-            position: userData.designation,
+            graduationYear: userData.graduationYear || userData.batch,
+            company: userData.currentCompany || userData.company,
+            position: userData.designation || userData.position,
           };
           
           console.log('AuthStore: Setting tokens and user data');
@@ -175,16 +175,16 @@ export const useAuthStore = create<AuthState>()(
           if (response.success && response.data) {
             const userData = response.data;
             const user: User = {
-              id: userData._id,
+              id: userData._id || userData.id,
               name: userData.name,
               email: userData.email,
               role: userData.role,
               profileImageUrl: userData.profileImageUrl,
               bio: userData.bio,
               department: userData.department,
-              graduationYear: userData.graduationYear,
-              company: userData.currentCompany,
-              position: userData.designation,
+              graduationYear: userData.graduationYear || userData.batch,
+              company: userData.currentCompany || userData.company,
+              position: userData.designation || userData.position,
             };
             
             set({ user, isLoading: false });
@@ -220,9 +220,9 @@ export const useAuthStore = create<AuthState>()(
               profileImageUrl: updatedUserData.profileImageUrl,
               bio: updatedUserData.bio,
               department: updatedUserData.department,
-              graduationYear: updatedUserData.graduationYear,
-              company: updatedUserData.currentCompany,
-              position: updatedUserData.designation,
+              graduationYear: updatedUserData.graduationYear || updatedUserData.batch,
+              company: updatedUserData.currentCompany || updatedUserData.company,
+              position: updatedUserData.designation || updatedUserData.position,
             };
             
             set({ user: updatedUser, isLoading: false });

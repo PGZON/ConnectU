@@ -418,6 +418,20 @@ class ApiClient {
   async getUserPosts(userId: string, page = 1, limit = 20): Promise<PaginatedResponse<any>> {
     return this.request(`/posts/user/${userId}?page=${page}&limit=${limit}`);
   }
+
+  // Polls API
+  async getActivePoll(): Promise<ApiResponse<any>> {
+    return this.request('/polls/active');
+  }
+  async votePoll(pollId: string, optionId: string): Promise<ApiResponse<any>> {
+    return this.request(`/polls/${pollId}/vote`, {
+      method: 'POST',
+      body: JSON.stringify({ optionId }),
+    });
+  }
+  async getPollResults(pollId: string): Promise<ApiResponse<any>> {
+    return this.request(`/polls/${pollId}/results`);
+  }
 }
 
 // Create and export API instance

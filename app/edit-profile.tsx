@@ -63,7 +63,7 @@ export default function EditProfileScreen() {
             <TextInput
               style={styles.input}
               value={formData.name}
-              onChangeText={(value) => handleChange('name', value)}
+              editable={false}
               placeholder="Your full name"
               placeholderTextColor={Colors.textSecondary}
             />
@@ -89,7 +89,7 @@ export default function EditProfileScreen() {
                 <TextInput
                   style={styles.input}
                   value={formData.department}
-                  onChangeText={(value) => handleChange('department', value)}
+                  editable={false}
                   placeholder="Your department or major"
                   placeholderTextColor={Colors.textSecondary}
                 />
@@ -100,7 +100,7 @@ export default function EditProfileScreen() {
                 <TextInput
                   style={styles.input}
                   value={formData.graduationYear}
-                  onChangeText={(value) => handleChange('graduationYear', value)}
+                  editable={false}
                   placeholder="Expected graduation year"
                   placeholderTextColor={Colors.textSecondary}
                   keyboardType="number-pad"

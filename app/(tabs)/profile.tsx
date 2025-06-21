@@ -1,22 +1,95 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, Platform, RefreshControl, ActivityIndicator, FlatList } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '@/store/authStore';
+import { useConnectionStore } from '@/store/connectionStore';
+import { useQueryStore } from '@/store/queryStore';
 import Colors from '@/constants/colors';
 import Button from '@/components/Button';
 import { Camera, LogOut, Edit2, CheckCircle, XCircle } from 'lucide-react-native';
-import { currentUser } from '@/mocks/users';
 import { useRouter } from 'expo-router';
-import api from '@/utils/api';
+import { api } from '@/utils/api';
+import PostCard from '@/components/PostCard';
 
 export default function ProfileScreen() {
-  const { logout } = useAuthStore();
-  const [user, setUser] = useState(currentUser);
-  const [isLoading, setIsLoading] = useState(false);
+  const { user, isLoading: authLoading, checkAuth, logout } = useAuthStore();
+  const { connections, fetchConnections, isLoading: connLoading } = useConnectionStore();
+  const { queries, fetchQueries, isLoading: queryLoading } = useQueryStore();
+  const [posts, setPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [verificationLoading, setVerificationLoading] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  // Fetch user posts
+  const fetchUserPosts = useCallback(async () => {
+    if (!user) return;
+    setPostsLoading(true);
+    try {
+      const res = await api.getUserPosts(user.id);
+      if (res.success && res.data && res.data.posts) {
+        setPosts(res.data.posts.map((post: any) => ({
+          id: post._id,
+          userId: post.author?._id,
+          user: post.author ? {
+            id: post.author._id,
+            name: post.author.name,
+            email: post.author.email,
+            role: post.author.role,
+            profileImageUrl: post.author.profileImageUrl,
+          } : null,
+          caption: post.caption || '',
+          mediaUrl: post.media?.[0]?.url || null,
+          mediaType: post.media?.[0]?.type || null,
+          likes: Array.isArray(post.likes) ? post.likes.map((like: any) => like._id || like) : [],
+          comments: Array.isArray(post.comments) ? post.comments.map((comment: any) => ({
+            id: comment._id,
+            userId: comment.user?._id,
+            user: comment.user ? {
+              id: comment.user._id,
+              name: comment.user.name,
+              email: comment.user.email,
+              role: comment.user.role,
+              profileImageUrl: comment.user.profileImageUrl,
+            } : null,
+            text: comment.content || '',
+            createdAt: comment.createdAt,
+          })) : [],
+          createdAt: post.createdAt,
+        })));
+      } else {
+        setPosts([]);
+      }
+    } catch (err) {
+      setPosts([]);
+    } finally {
+      setPostsLoading(false);
+    }
+  }, [user]);
+
+  // Initial fetch
+  useEffect(() => {
+    if (!user) {
+      checkAuth();
+      return;
+    }
+    fetchConnections();
+    fetchQueries();
+    fetchUserPosts();
+  }, [user, checkAuth, fetchConnections, fetchQueries, fetchUserPosts]);
+
+  // Pull to refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await checkAuth();
+    await fetchConnections();
+    await fetchQueries();
+    await fetchUserPosts();
+    setRefreshing(false);
+  }, [checkAuth, fetchConnections, fetchQueries, fetchUserPosts]);
 
   const handleEditProfile = () => {
     router.push('/edit-profile');
@@ -25,31 +98,20 @@ export default function ProfileScreen() {
   const handlePickImage = async () => {
     if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to make this work!');
         return;
       }
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
-
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setIsLoading(true);
-      
-      // Simulate API call to update profile image
-      setTimeout(() => {
-        setUser(prev => ({
-          ...prev,
-          profileImageUrl: result.assets[0].uri,
-        }));
-        setIsLoading(false);
-      }, 1000);
+      // TODO: Implement backend upload and update
+      Alert.alert('Not implemented', 'Profile image update is not implemented yet.');
     }
   };
 
@@ -58,15 +120,8 @@ export default function ProfileScreen() {
       'Logout',
       'Are you sure you want to logout?',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          onPress: () => logout(),
-          style: 'destructive',
-        },
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', onPress: () => logout(), style: 'destructive' },
       ]
     );
   };
@@ -75,22 +130,42 @@ export default function ProfileScreen() {
     setVerificationLoading(true);
     setVerificationMessage(null);
     try {
-      const response = await api.post('/verify/prn', { prn: user.prn });
-      if (response.data && response.data.success) {
-        setVerificationMessage('Verification successful!');
-        setUser({ ...user, isVerified: true });
-      } else {
-        setVerificationMessage(response.data.message || 'Verification failed.');
-      }
+      // TODO: Implement verification API call
+      setVerificationMessage('Verification not implemented.');
     } catch (error: any) {
-      setVerificationMessage(error.response?.data?.message || 'Verification failed.');
+      setVerificationMessage('Verification failed.');
     } finally {
       setVerificationLoading(false);
     }
   };
 
+  if (authLoading || !user) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={{ color: Colors.error }}>{error}</Text>
+        <Button title="Retry" onPress={onRefresh} />
+      </View>
+    );
+  }
+
+  // Stats
+  const connectionsCount = connections.length;
+  const postsCount = posts.length;
+  const queriesCount = queries.filter(q => q.studentId === user.id).length;
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} tintColor={Colors.primary} />}
+    >
       <View style={styles.header}>
         <View style={styles.profileImageContainer}>
           <Image
@@ -101,12 +176,10 @@ export default function ProfileScreen() {
           <TouchableOpacity 
             style={styles.cameraButton}
             onPress={handlePickImage}
-            disabled={isLoading}
           >
             <Camera size={18} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
-        
         <Text style={styles.name}>{user.name}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
           {user.isVerified ? (
@@ -132,25 +205,21 @@ export default function ProfileScreen() {
           <Text style={{ color: user.isVerified ? Colors.success : Colors.error, marginBottom: 8 }}>{verificationMessage}</Text>
         )}
         <Text style={styles.role}>{user.role}</Text>
-        
         {user.role === 'student' && (
           <Text style={styles.details}>
             {user.department}, Class of {user.graduationYear}
           </Text>
         )}
-        
         {user.role === 'alumni' && (
           <Text style={styles.details}>
             {user.position} at {user.company}
           </Text>
         )}
       </View>
-      
       <View style={styles.bioSection}>
         <Text style={styles.sectionTitle}>Bio</Text>
         <Text style={styles.bioText}>{user.bio || 'No bio added yet.'}</Text>
       </View>
-      
       <View style={styles.actionsContainer}>
         <Button
           title="Edit Profile"
@@ -161,7 +230,6 @@ export default function ProfileScreen() {
           textStyle={styles.actionButtonText}
           icon={<Edit2 size={16} color={Colors.primary} style={{ marginRight: 8 }} />}
         />
-        
         <Button
           title="Logout"
           onPress={handleLogout}
@@ -172,26 +240,37 @@ export default function ProfileScreen() {
           icon={<LogOut size={16} color={Colors.error} style={{ marginRight: 8 }} />}
         />
       </View>
-      
       <View style={styles.statsSection}>
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>24</Text>
+          <Text style={styles.statValue}>{connectionsCount}</Text>
           <Text style={styles.statLabel}>Connections</Text>
         </View>
-        
         <View style={styles.statDivider} />
-        
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>12</Text>
+          <Text style={styles.statValue}>{postsCount}</Text>
           <Text style={styles.statLabel}>Posts</Text>
         </View>
-        
         <View style={styles.statDivider} />
-        
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>8</Text>
+          <Text style={styles.statValue}>{queriesCount}</Text>
           <Text style={styles.statLabel}>Queries</Text>
         </View>
+      </View>
+      <View style={styles.postsSection}>
+        <Text style={styles.sectionTitle}>My Posts</Text>
+        {postsLoading ? (
+          <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 16 }} />
+        ) : posts.length === 0 ? (
+          <Text style={{ textAlign: 'center', color: Colors.textSecondary, marginTop: 16 }}>No posts yet.</Text>
+        ) : (
+          <FlatList
+            data={posts}
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => <PostCard post={item} />}
+            scrollEnabled={false}
+            contentContainerStyle={{ paddingBottom: 24 }}
+          />
+        )}
       </View>
     </ScrollView>
   );
@@ -200,6 +279,12 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: Colors.background,
   },
   header: {
@@ -321,5 +406,9 @@ const styles = StyleSheet.create({
     color: Colors.error,
     fontWeight: '600',
     marginRight: 8,
+  },
+  postsSection: {
+    marginTop: 24,
+    marginHorizontal: 16,
   },
 });

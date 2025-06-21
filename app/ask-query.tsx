@@ -7,48 +7,47 @@ import Colors from '@/constants/colors';
 import Button from '@/components/Button';
 import Avatar from '@/components/Avatar';
 import { User } from '@/types';
+import { Picker } from '@react-native-picker/picker';
 
 export default function AskQueryScreen() {
   const [question, setQuestion] = useState('');
-  const [isPublic, setIsPublic] = useState(true);
-  const [selectedAlumni, setSelectedAlumni] = useState<User | null>(null);
+  const [content, setContent] = useState('');
+  const [category, setCategory] = useState('career-guidance');
   const { askQuery, isLoading } = useQueryStore();
-  const { getConnectedUsers } = useConnectionStore();
-  const [connectedAlumni, setConnectedAlumni] = useState<User[]>([]);
+  const [error, setError] = useState('');
   const router = useRouter();
 
-  useEffect(() => {
-    // Filter only alumni from connected users
-    const alumni = getConnectedUsers().filter(user => user.role === 'alumni');
-    setConnectedAlumni(alumni);
-  }, [getConnectedUsers]);
+  const CATEGORY_OPTIONS = [
+    { label: 'Career Guidance', value: 'career-guidance' },
+    { label: 'Interview Prep', value: 'interview-prep' },
+    { label: 'Job Search', value: 'job-search' },
+    { label: 'Skill Development', value: 'skill-development' },
+    { label: 'Industry Insights', value: 'industry-insights' },
+    { label: 'Networking', value: 'networking' },
+    { label: 'Resume', value: 'resume' },
+    { label: 'Other', value: 'other' },
+  ];
 
-  const handleTogglePublic = () => {
-    setIsPublic(!isPublic);
-    if (isPublic) {
-      // If switching to private, require alumni selection
-      setSelectedAlumni(null);
+  const validate = () => {
+    if (question.trim().length < 5) {
+      setError('Question title must be at least 5 characters.');
+      return false;
     }
-  };
-
-  const handleSelectAlumni = (alumni: User) => {
-    setSelectedAlumni(alumni);
+    if (content.trim().length < 10 || content.trim().length > 1000) {
+      setError('Content must be between 10 and 1000 characters.');
+      return false;
+    }
+    if (!CATEGORY_OPTIONS.some(opt => opt.value === category)) {
+      setError('Please select a valid category.');
+      return false;
+    }
+    setError('');
+    return true;
   };
 
   const handleSubmit = async () => {
-    if (question.trim() === '') return;
-    
-    if (!isPublic && !selectedAlumni) {
-      alert('Please select an alumni for your private query');
-      return;
-    }
-    
-    await askQuery(
-      question, 
-      !isPublic ? selectedAlumni?.id : undefined,
-      isPublic
-    );
-    
+    if (!validate()) return;
+    await askQuery(question, content, category, 'medium');
     router.back();
   };
 
@@ -64,12 +63,11 @@ export default function AskQueryScreen() {
               variant="primary"
               size="small"
               loading={isLoading}
-              disabled={question.trim() === '' || (!isPublic && !selectedAlumni)}
+              disabled={isLoading}
             />
           ),
         }} 
       />
-      
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -77,63 +75,44 @@ export default function AskQueryScreen() {
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Your Question</Text>
+            <Text style={styles.label}>Question Title</Text>
             <TextInput
               style={styles.questionInput}
-              placeholder="Ask a career-related question..."
+              placeholder="Short summary of your question..."
               value={question}
               onChangeText={setQuestion}
-              multiline
-              maxLength={500}
+              maxLength={100}
               placeholderTextColor={Colors.textSecondary}
               autoFocus
             />
           </View>
-          
           <View style={styles.formGroup}>
-            <View style={styles.toggleContainer}>
-              <Text style={styles.label}>Make question public</Text>
-              <Switch
-                value={isPublic}
-                onValueChange={handleTogglePublic}
-                trackColor={{ false: Colors.inactive, true: Colors.primary }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-            <Text style={styles.helperText}>
-              {isPublic 
-                ? 'Your question will be visible to all alumni' 
-                : 'Your question will only be sent to the selected alumni'}
-            </Text>
+            <Text style={styles.label}>Details</Text>
+            <TextInput
+              style={[styles.questionInput, { minHeight: 100 }]}
+              placeholder="Describe your question in detail..."
+              value={content}
+              onChangeText={setContent}
+              multiline
+              maxLength={1000}
+              placeholderTextColor={Colors.textSecondary}
+            />
           </View>
-          
-          {!isPublic && (
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Select Alumni</Text>
-              {connectedAlumni.length > 0 ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {connectedAlumni.map(alumni => (
-                    <TouchableOpacity
-                      key={alumni.id}
-                      style={[
-                        styles.alumniItem,
-                        selectedAlumni?.id === alumni.id && styles.selectedAlumni
-                      ]}
-                      onPress={() => handleSelectAlumni(alumni)}
-                    >
-                      <Avatar uri={alumni.profileImageUrl} size={50} />
-                      <Text style={styles.alumniName}>{alumni.name}</Text>
-                      <Text style={styles.alumniPosition}>{alumni.position}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              ) : (
-                <Text style={styles.noAlumniText}>
-                  You need to connect with alumni first
-                </Text>
-              )}
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Category</Text>
+            <View style={{ backgroundColor: Colors.card, borderRadius: 8 }}>
+              <Picker
+                selectedValue={category}
+                onValueChange={setCategory}
+                style={{ color: Colors.text }}
+              >
+                {CATEGORY_OPTIONS.map(opt => (
+                  <Picker.Item key={opt.value} label={opt.label} value={opt.value} />
+                ))}
+              </Picker>
             </View>
-          )}
+          </View>
+          {error ? <Text style={{ color: Colors.error, marginTop: 8 }}>{error}</Text> : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { useQueryStore } from '@/store/queryStore';
+import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Button from '@/components/Button';
 import Avatar from '@/components/Avatar';
@@ -10,6 +11,7 @@ import { formatTimeAgo } from '@/utils/dateUtils';
 export default function QueryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { queries, answerQuery, isLoading } = useQueryStore();
+  const { user } = useAuthStore();
   const [answer, setAnswer] = useState('');
   const router = useRouter();
 
@@ -74,27 +76,35 @@ export default function QueryDetailScreen() {
                 <Text style={styles.answerText}>{query.answer}</Text>
               </View>
             ) : (
-              <View style={styles.answerInputContainer}>
-                <Text style={styles.answerLabel}>Your Answer:</Text>
-                <TextInput
-                  style={styles.answerInput}
-                  placeholder="Provide your professional advice..."
-                  value={answer}
-                  onChangeText={setAnswer}
-                  multiline
-                  maxLength={1000}
-                  placeholderTextColor={Colors.textSecondary}
-                />
-                <Button
-                  title="Submit Answer"
-                  onPress={handleSubmitAnswer}
-                  variant="primary"
-                  loading={isLoading}
-                  disabled={answer.trim() === ''}
-                  fullWidth
-                  style={styles.submitButton}
-                />
-              </View>
+              user?.role === 'alumni' ? (
+                <View style={styles.answerInputContainer}>
+                  <Text style={styles.answerLabel}>Your Answer:</Text>
+                  <TextInput
+                    style={styles.answerInput}
+                    placeholder="Provide your professional advice..."
+                    value={answer}
+                    onChangeText={setAnswer}
+                    multiline
+                    maxLength={1000}
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                  <Button
+                    title="Submit Answer"
+                    onPress={handleSubmitAnswer}
+                    variant="primary"
+                    loading={isLoading}
+                    disabled={answer.trim() === ''}
+                    fullWidth
+                    style={styles.submitButton}
+                  />
+                </View>
+              ) : (
+                <View style={styles.answerInputContainer}>
+                  <Text style={{ color: Colors.textSecondary, fontStyle: 'italic', marginTop: 16 }}>
+                    Only alumni can answer queries.
+                  </Text>
+                </View>
+              )
             )}
           </View>
         </ScrollView>

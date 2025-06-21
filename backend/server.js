@@ -21,6 +21,7 @@ const connectionRoutes = require('./routes/connections');
 const messageRoutes = require('./routes/messages');
 const verifyRoutes = require('./routes/verify');
 const adminRoutes = require('./routes/admin');
+const pollRoutes = require('./routes/polls');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
@@ -87,6 +88,7 @@ app.use('/api/connections', connectionRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/verify', verifyRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/polls', pollRoutes);
 
 // Error handling middleware
 app.use(notFound);

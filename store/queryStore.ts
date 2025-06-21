@@ -38,30 +38,38 @@ export const useQueryStore = create<QueryState>((set, get) => ({
       const response = await api.getQueries(page, 20);
       
       if (response.success && response.data) {
-        const transformedQueries: Query[] = response.data.map((query: any) => ({
-          id: query._id,
-          studentId: query.student._id,
-          student: {
-            id: query.student._id,
-            name: query.student.name,
-            email: query.student.email,
-            role: query.student.role,
-            profileImageUrl: query.student.profileImageUrl,
-          },
-          alumniId: query.assignedAlumni?.[0]?._id,
-          alumni: query.assignedAlumni?.[0] ? {
-            id: query.assignedAlumni[0]._id,
-            name: query.assignedAlumni[0].name,
-            email: query.assignedAlumni[0].email,
-            role: query.assignedAlumni[0].role,
-            profileImageUrl: query.assignedAlumni[0].profileImageUrl,
-          } : undefined,
-          question: `${query.title}\n\n${query.content}`,
-          answer: query.answers?.[0]?.content,
-          isPublic: query.isPublic,
-          createdAt: query.createdAt,
-          answeredAt: query.answers?.[0]?.createdAt,
-        }));
+        const transformedQueries: Query[] = response.data
+          .filter((query: any) => {
+            const valid = query.student && query.student._id && query.student.name;
+            if (!valid) {
+              console.warn('Skipping query due to missing student:', query);
+            }
+            return valid;
+          })
+          .map((query: any) => ({
+            id: query._id,
+            studentId: query.student._id,
+            student: {
+              id: query.student._id,
+              name: query.student.name,
+              email: query.student.email,
+              role: query.student.role,
+              profileImageUrl: query.student.profileImageUrl,
+            },
+            alumniId: query.assignedAlumni?.[0]?._id,
+            alumni: query.assignedAlumni?.[0] ? {
+              id: query.assignedAlumni[0]._id,
+              name: query.assignedAlumni[0].name,
+              email: query.assignedAlumni[0].email,
+              role: query.assignedAlumni[0].role,
+              profileImageUrl: query.assignedAlumni[0].profileImageUrl,
+            } : undefined,
+            question: `${query.title}\n\n${query.content}`,
+            answer: query.answers?.[0]?.content,
+            isPublic: query.isPublic,
+            createdAt: query.createdAt,
+            answeredAt: query.answers?.[0]?.createdAt,
+          }));
 
         if (page === 1) {
           set({ 
