@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '@/types';
 import { api } from '@/utils/api';
+import { socketService } from '@/utils/socket';
 
 interface AuthState {
   user: User | null;
@@ -91,6 +92,7 @@ export const useAuthStore = create<AuthState>()(
           console.log('AuthStore: Setting tokens and user data');
           await get().setTokens(accessToken, refreshToken);
           set({ user, isLoading: false, error: null });
+          socketService.connect();
           
           console.log('AuthStore: Login successful for user:', user.email);
         } catch (error) {
@@ -151,6 +153,7 @@ export const useAuthStore = create<AuthState>()(
       
       logout: async () => {
         try {
+          socketService.disconnect();
           await api.logout();
         } catch (error) {
           console.error('Logout error:', error);
@@ -192,6 +195,7 @@ export const useAuthStore = create<AuthState>()(
             };
             
             set({ user, isAuthenticated: true, isLoading: false, error: null });
+            socketService.connect();
           } else {
             await get().logout();
           }

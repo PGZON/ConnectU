@@ -3,53 +3,43 @@ import { StyleSheet, View, TextInput, FlatList, KeyboardAvoidingView, Platform, 
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { useMessageStore } from '@/store/messageStore';
 import { useAuthStore } from '@/store/authStore';
-import { mockUsers } from '@/mocks/users';
+import useConnectionStore from '@/store/connectionStore';
 import Colors from '@/constants/colors';
 import MessageBubble from '@/components/MessageBubble';
 import { Send } from 'lucide-react-native';
 import Avatar from '@/components/Avatar';
-import { socket } from '@/store/messageStore';
+import { User } from '@/types';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { messages, fetchMessages, sendMessage, markAsRead, typing, startTyping, stopTyping, error } = useMessageStore();
-  const { user } = useAuthStore();
+  const { messages, fetchMessages, sendRealtimeMessage, markAsRead, error } = useMessageStore();
+  const { user: currentUser } = useAuthStore();
+  const { connectedUsers } = useConnectionStore();
   const [messageText, setMessageText] = useState('');
-  const [chatUser, setChatUser] = useState(mockUsers.find(u => u.id === id));
+  const [chatUser, setChatUser] = useState<User | undefined>();
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
-  const [isTyping, setIsTyping] = useState(false);
-  const typingTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const userMessages = messages[id] || [];
 
   useEffect(() => {
+    if (connectedUsers) {
+      const foundUser = connectedUsers.find(u => u._id === id);
+      setChatUser(foundUser);
+    }
+
     if (id) {
       fetchMessages(id);
       markAsRead(id);
     }
-  }, [id, fetchMessages, markAsRead]);
-
-  const handleInputChange = (text: string) => {
-    setMessageText(text);
-    if (!isTyping) {
-      setIsTyping(true);
-      startTyping(id);
-    }
-    if (typingTimeout.current) clearTimeout(typingTimeout.current);
-    typingTimeout.current = setTimeout(() => {
-      setIsTyping(false);
-      stopTyping(id);
-    }, 1200);
-  };
+  }, [id, fetchMessages, markAsRead, connectedUsers]);
 
   const handleSend = () => {
-    if (messageText.trim() === '') return;
+    if (messageText.trim() === '' || !id) return;
     
-    sendMessage(id, messageText.trim());
+    sendRealtimeMessage(id, messageText.trim());
     setMessageText('');
     
-    // Scroll to bottom after sending
     setTimeout(() => {
       if (flatListRef.current) {
         flatListRef.current.scrollToEnd({ animated: true });
@@ -67,7 +57,7 @@ export default function ChatScreen() {
               onPress={() => router.back()}
               style={{ marginLeft: 8 }}
             >
-              <Avatar uri={chatUser?.profileImageUrl} size={32} />
+              <Avatar uri={chatUser?.profileImage} size={32} />
             </TouchableOpacity>
           ),
         }} 
@@ -81,11 +71,11 @@ export default function ChatScreen() {
         <FlatList
           ref={flatListRef}
           data={userMessages}
-          keyExtractor={(item) => item.id || item.timestamp}
+          keyExtractor={(item) => item._id || new Date(item.createdAt).toISOString()}
           renderItem={({ item }) => (
             <MessageBubble 
               message={item} 
-              isCurrentUser={item.senderId === user?.id}
+              isCurrentUser={item.sender._id === currentUser?._id}
             />
           )}
           contentContainerStyle={styles.messagesList}
@@ -96,16 +86,9 @@ export default function ChatScreen() {
           }}
         />
         
-        {/* Typing indicator */}
-        {typing && typing[id] && (
-          <View style={{ paddingLeft: 16, paddingBottom: 4 }}>
-            <Text style={{ color: Colors.textSecondary, fontStyle: 'italic' }}>{chatUser?.name || 'User'} is typing...</Text>
-          </View>
-        )}
-        {/* Connection status */}
         {error && (
           <View style={{ paddingLeft: 16, paddingBottom: 4 }}>
-            <Text style={{ color: Colors.error, fontStyle: 'italic' }}>Offline</Text>
+            <Text style={{ color: Colors.error, fontStyle: 'italic' }}>{error}</Text>
           </View>
         )}
         
@@ -114,7 +97,7 @@ export default function ChatScreen() {
             style={styles.input}
             placeholder="Type a message..."
             value={messageText}
-            onChangeText={handleInputChange}
+            onChangeText={setMessageText}
             multiline
             maxLength={500}
             placeholderTextColor={Colors.textSecondary}

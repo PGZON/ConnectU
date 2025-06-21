@@ -11,6 +11,7 @@ interface ConnectionState {
   receivedRequests: Connection[];
   sentRequests: Connection[];
   establishedConnections: Connection[];
+  connectedUsers: User[];
   isLoading: boolean;
   error: string | null;
   fetchAllUsers: (page?: number, limit?: number) => Promise<void>;
@@ -34,6 +35,7 @@ const useConnectionStore = create<ConnectionState>((set, get) => {
     receivedRequests: [],
     sentRequests: [],
     establishedConnections: [],
+    connectedUsers: [],
     isLoading: false,
     error: null,
 
@@ -46,6 +48,10 @@ const useConnectionStore = create<ConnectionState>((set, get) => {
       const received = connections.filter(c => c.alumni?._id === userId && c.status === 'pending');
       const sent = connections.filter(c => c.student?._id === userId && c.status === 'pending');
       const established = connections.filter(c => c.status === 'accepted');
+
+      const connectedUsers: User[] = established.map(c => {
+        return c.student?._id === userId ? c.alumni! : c.student!;
+      }).filter(Boolean);
 
       const connectedUserIds = new Set<string>();
       userId && connectedUserIds.add(userId);
@@ -68,6 +74,7 @@ const useConnectionStore = create<ConnectionState>((set, get) => {
         sentRequests: sent,
         establishedConnections: established,
         discoverUsers: discover,
+        connectedUsers: connectedUsers,
       });
     },
 

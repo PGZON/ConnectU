@@ -8,6 +8,8 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
+const { createAndSendMessage } = require('./controllers/messageController');
 
 
 const app = express();
@@ -114,18 +116,53 @@ const io = new Server(server, {
   }
 });
 
+// Add a map to track socket IDs to user IDs
+const socketUserMap = new Map();
+
+// Socket.io authentication middleware
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Authentication error: No token provided'));
+  }
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return next(new Error('Authentication error: Invalid token'));
+    }
+    socket.user = decoded; // Attach user payload to the socket object
+    next();
+  });
+});
+
 // Socket.io event handlers
 io.on('connection', (socket) => {
-  console.log('Socket connected:', socket.id);
+  console.log('Socket connected:', socket.id, 'for user:', socket.user.id);
+  socketUserMap.set(socket.user.id, socket.id);
 
   socket.on('joinRoom', (roomId) => {
     socket.join(roomId);
-    console.log(`Socket ${socket.id} joined room ${roomId}`);
+    console.log(`Socket ${socket.id} (user ${socket.user.id}) joined room ${roomId}`);
   });
 
-  socket.on('sendMessage', (data) => {
-    // data: { roomId, message }
-    io.to(data.roomId).emit('receiveMessage', data.message);
+  socket.on('sendMessage', async (data) => {
+    // data: { receiverId, content }
+    try {
+      const { receiverId, content } = data;
+      const senderId = socket.user.id;
+      
+      // The conversation room is a consistent ID between two users
+      const roomId = [senderId, receiverId].sort().join('-');
+
+      const savedMessage = await createAndSendMessage(senderId, receiverId, content);
+      
+      // Emit the saved message to the room
+      io.to(roomId).emit('receiveMessage', savedMessage);
+
+    } catch (error) {
+      console.error('Socket sendMessage error:', error.message);
+      // Optionally, emit an error event back to the sender
+      socket.emit('sendMessageError', { message: error.message });
+    }
   });
 
   // Typing indicators
@@ -145,7 +182,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('Socket disconnected:', socket.id);
+    console.log('Socket disconnected:', socket.id, 'for user:', socket.user.id);
+    socketUserMap.delete(socket.user.id);
   });
 });
 

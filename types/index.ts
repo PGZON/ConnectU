@@ -59,10 +59,14 @@ export interface Connection {
 }
 
 export interface Message {
-  id: string;
-  senderId: string;
-  receiverId: string;
-  message: string;
-  timestamp: string;
+  _id: string;
+  id?: string;
+  sender: User;
+  receiver: User;
+  content: string;
+  createdAt: string;
+  timestamp?: string;
+  message?: string;
   isRead: boolean;
+  status?: 'sent' | 'delivered' | 'read';
 }

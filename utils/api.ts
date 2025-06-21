@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // API Configuration
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || (__DEV__ ? 'http://192.168.175.239:5000/api' : 'https://your-production-api.com/api');
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || (__DEV__ ? 'http://192.168.175.239:5000' : 'https://your-production-api.com');
 
 // Debug logging
 console.log('API_BASE_URL:', API_BASE_URL);

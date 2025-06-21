@@ -2,34 +2,45 @@ const Message = require('../models/Message');
 const Connection = require('../models/Connection');
 const { successResponse, notFoundResponse, badRequestResponse, forbiddenResponse } = require('../utils/responseHandler');
 
-// @desc    Send message
+// This function will be called by both the HTTP endpoint and the socket handler
+const createAndSendMessage = async (senderId, receiverId, content, type = 'text', attachments = []) => {
+  // Check if users are connected
+  const connection = await Connection.areConnected(senderId, receiverId);
+  if (!connection) {
+    // In a real-time context, we can throw an error or emit an error event
+    throw new Error('You can only message connected users');
+  }
+
+  const message = await Message.create({
+    sender: senderId,
+    receiver: receiverId,
+    content,
+    type,
+    attachments,
+    status: 'sent'
+  });
+
+  // Populate to get full user objects for the socket emission
+  await message.populate('sender', 'name email role profileImageUrl');
+  await message.populate('receiver', 'name email role profileImageUrl');
+
+  return message;
+};
+
+// @desc    Send message via HTTP
 // @route   POST /api/messages/send
 // @access  Private
 const sendMessage = async (req, res) => {
   try {
-    const { receiver, content, type = 'text', attachments = [] } = req.body;
-
-    // Check if users are connected
-    const connection = await Connection.areConnected(req.user._id, receiver);
-    if (!connection) {
-      return forbiddenResponse(res, 'You can only message connected users');
-    }
-
-    const message = await Message.create({
-      sender: req.user._id,
-      receiver,
-      content,
-      type,
-      attachments,
-      status: 'sent'
-    });
-
-    await message.populate('sender', 'name email role profileImageUrl');
-    await message.populate('receiver', 'name email role profileImageUrl');
-
+    const { receiver, content, type, attachments } = req.body;
+    const message = await createAndSendMessage(req.user._id, receiver, content, type, attachments);
     return successResponse(res, message, 'Message sent successfully');
   } catch (error) {
     console.error('Send message error:', error);
+    // Use forbiddenResponse for the specific connection error
+    if (error.message === 'You can only message connected users') {
+      return forbiddenResponse(res, error.message);
+    }
     return badRequestResponse(res, error.message);
   }
 };
@@ -247,6 +258,7 @@ const getUnreadMessages = async (req, res) => {
 };
 
 module.exports = {
+  createAndSendMessage,
   sendMessage,
   getConversation,
   getRecentConversations,
