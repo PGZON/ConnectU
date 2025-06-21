@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo, useCallback } from 'react';
+import { StyleSheet, View, FlatList, ActivityIndicator, Text, TouchableOpacity, RefreshControl } from 'react-native';
 import useConnectionStore from '@/store/connectionStore';
 import { useMessageStore } from '@/store/messageStore';
 import { useAuthStore } from '@/store/authStore';
@@ -10,45 +10,37 @@ import { formatTimeAgo } from '@/utils/dateUtils';
 import { User } from '@/types';
 
 export default function MessagesScreen() {
-  const { connections, isLoading: connectionsLoading, fetchConnections } = useConnectionStore();
+  const { establishedConnections, isLoading: connectionsLoading, fetchConnections } = useConnectionStore();
   const { user: currentUser } = useAuthStore();
   const { messages, fetchMessages, getUnreadCount } = useMessageStore();
-  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchConnections();
+    }
+  }, [currentUser, fetchConnections]);
+
+  const onRefresh = useCallback(() => {
+    if (currentUser) {
+      fetchConnections();
+    }
+  }, [currentUser, fetchConnections]);
 
   const connectedUsers = useMemo(() => {
     if (!currentUser) return [];
-    return connections.map(c => c.sender.id === currentUser.id ? c.receiver : c.sender);
-  }, [connections, currentUser]);
+    return establishedConnections
+      .map(c => c.student?._id === currentUser._id ? c.alumni : c.student)
+      .filter(Boolean) as User[];
+  }, [establishedConnections, currentUser]);
 
   useEffect(() => {
-    fetchConnections();
-  }, [fetchConnections]);
-
-  useEffect(() => {
-    // Fetch messages for all connected users
     connectedUsers.forEach(user => {
-      if (user?.id) fetchMessages(user.id);
+      if (user?._id) fetchMessages(user._id);
     });
   }, [connectedUsers, fetchMessages]);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchConnections();
-    // Message fetching will be triggered by the useEffect above
-    setRefreshing(false);
-  };
-
-  const handleUserPress = (user: User) => {
-    if (user?.id) router.push(`/messages/${user.id}`);
-  };
-
-  const getLastMessage = (userId: string) => {
-    const userMessages = messages[userId] || [];
-    return userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
-  };
-
-  if (connectionsLoading && !refreshing && connectedUsers.length === 0) {
+  if (connectionsLoading || !currentUser) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
@@ -56,15 +48,24 @@ export default function MessagesScreen() {
     );
   }
 
+  const handleUserPress = (user: User) => {
+    if (user?._id) router.push(`/messages/${user._id}`);
+  };
+
+  const getLastMessage = (userId: string) => {
+    const userMessages = messages[userId] || [];
+    return userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
-        data={connectedUsers.filter(Boolean)} // Filter out any potential null/undefined users
-        keyExtractor={(item) => item.id}
+        data={connectedUsers}
+        keyExtractor={(item) => item._id}
         renderItem={({ item }) => {
-          if (!item?.id) return null; // Defensive check
-          const lastMessage = getLastMessage(item.id);
-          const unreadCount = getUnreadCount(item.id);
+          if (!item?._id) return null; // Defensive check
+          const lastMessage = getLastMessage(item._id);
+          const unreadCount = getUnreadCount(item._id);
           
           return (
             <TouchableOpacity 
@@ -108,8 +109,8 @@ export default function MessagesScreen() {
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
+            refreshing={connectionsLoading}
+            onRefresh={onRefresh}
             colors={[Colors.primary]}
             tintColor={Colors.primary}
           />

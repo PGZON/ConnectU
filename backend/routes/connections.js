@@ -10,7 +10,9 @@ const {
   getPendingRequests,
   getConnectionSuggestions,
   blockConnection,
-  updateConnectionStrength
+  updateConnectionStrength,
+  acceptConnectionRequest,
+  declineConnectionRequest,
 } = require('../controllers/connectionController');
 
 // Protected routes
@@ -22,5 +24,7 @@ router.get('/pending', protect, requireVerification, requireAlumni, validatePagi
 router.get('/suggestions', protect, requireVerification, requireStudent, getConnectionSuggestions);
 router.put('/:id/block', protect, requireVerification, blockConnection);
 router.put('/:id/strength', protect, requireVerification, updateConnectionStrength);
+router.put('/:connectionId/accept', protect, requireVerification, acceptConnectionRequest);
+router.put('/:connectionId/decline', protect, requireVerification, declineConnectionRequest);
 
 module.exports = router; 

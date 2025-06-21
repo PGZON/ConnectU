@@ -20,6 +20,8 @@ interface ConnectionState {
   acceptConnection: (connectionId: string) => Promise<void>;
   declineConnection: (connectionId: string) => Promise<void>;
   getConnectionStatus: (otherUserId: string) => { status: string; connectionId?: string };
+  withdrawConnectionRequest: (connectionId: string) => Promise<void>;
+  disconnectUser: (connectionId: string) => Promise<void>;
 }
 
 const useConnectionStore = create<ConnectionState>((set, get) => {
@@ -162,6 +164,36 @@ const useConnectionStore = create<ConnectionState>((set, get) => {
         Toast.show({ type: 'error', text1: 'Error', text2: message });
       } finally {
         set({ isLoading: false });
+      }
+    },
+
+    withdrawConnectionRequest: async (connectionId: string) => {
+      try {
+        const response = await api.rejectConnection(connectionId);
+        if (response.success) {
+          Toast.show({ type: 'info', text1: 'Request Withdrawn' });
+          get().fetchConnections();
+        } else {
+          throw new Error(response.message);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to withdraw request';
+        Toast.show({ type: 'error', text1: 'Error', text2: message });
+      }
+    },
+
+    disconnectUser: async (connectionId: string) => {
+      try {
+        const response = await api.rejectConnection(connectionId);
+        if (response.success) {
+          Toast.show({ type: 'info', text1: 'User Disconnected' });
+          get().fetchConnections();
+        } else {
+          throw new Error(response.message);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to disconnect user';
+        Toast.show({ type: 'error', text1: 'Error', text2: message });
       }
     },
     

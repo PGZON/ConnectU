@@ -33,6 +33,8 @@ export default function NetworkScreen() {
     declineConnection,
     sendConnectionRequest,
     getConnectionStatus,
+    withdrawConnectionRequest,
+    disconnectUser,
   } = useConnectionStore();
   const { user: currentUser } = useAuthStore();
   const [activeTab, setActiveTab] = useState('Discover');
@@ -63,15 +65,19 @@ export default function NetworkScreen() {
 
   const renderUserCard = ({ item }: { item: User }) => {
     if (!item || !item._id) return null; // Safety check
-    const status = getConnectionStatus(item._id);
+    
+    // Pass the entire status object to the UserCard
+    const connectionStatus = getConnectionStatus(item._id);
+
     return (
       <UserCard
         user={item}
-        connectionStatus={status.status}
-        connectionId={status.connectionId}
+        connectionStatus={connectionStatus}
         onAccept={acceptConnection}
         onDecline={declineConnection}
         onConnect={sendConnectionRequest}
+        onWithdraw={withdrawConnectionRequest}
+        onDisconnect={disconnectUser}
       />
     );
   };

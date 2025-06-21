@@ -247,6 +247,45 @@ const updateConnectionStrength = async (req, res) => {
   }
 };
 
+const acceptConnectionRequest = async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const connection = await Connection.findById(connectionId);
+
+    if (!connection) {
+      return notFoundResponse(res, 'Connection not found');
+    }
+
+    // You might want to add a check here to ensure the user accepting is the alumni
+    // For example: if (connection.alumni.toString() !== req.user.id) { ... }
+
+    await connection.accept();
+    return successResponse(res, connection, 'Connection accepted successfully');
+  } catch (error) {
+    console.error('Accept connection error:', error);
+    return badRequestResponse(res, error.message);
+  }
+};
+
+const declineConnectionRequest = async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const connection = await Connection.findById(connectionId);
+
+    if (!connection) {
+      return notFoundResponse(res, 'Connection not found');
+    }
+    
+    // You might want to add a check here as well
+    
+    await connection.reject();
+    return successResponse(res, connection, 'Connection declined successfully');
+  } catch (error) {
+    console.error('Decline connection error:', error);
+    return badRequestResponse(res, error.message);
+  }
+};
+
 module.exports = {
   sendConnectionRequest,
   acceptConnection,
@@ -255,5 +294,7 @@ module.exports = {
   getPendingRequests,
   getConnectionSuggestions,
   blockConnection,
-  updateConnectionStrength
+  updateConnectionStrength,
+  acceptConnectionRequest,
+  declineConnectionRequest
 }; 
