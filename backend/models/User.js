@@ -279,41 +279,36 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
   }
 };
 
-// Method to get public profile
+// Method to generate public profile
 userSchema.methods.getPublicProfile = function() {
   const userObject = this.toObject();
-  delete userObject.password;
-  delete userObject.__v;
   
-  return {
+  const publicProfile = {
     id: userObject._id,
+    _id: userObject._id, // Keep _id for some internal logic if needed
     name: userObject.name,
     email: userObject.email,
     role: userObject.role,
     isVerified: userObject.isVerified,
     verificationStatus: userObject.verificationStatus,
-    profileImageUrl: this.profileImageUrl,
-    coverImageUrl: this.coverImageUrl,
+    profileImageUrl: this.profileImageUrl, // Use the virtual
+    coverImageUrl: this.coverImageUrl, // Use the virtual
     bio: userObject.bio,
     department: userObject.department,
     batch: userObject.batch,
-    graduationYear: userObject.graduationYear,
-    currentCompany: userObject.currentCompany,
-    designation: userObject.designation,
-    experience: userObject.experience,
-    linkedin: userObject.linkedin,
-    github: userObject.github,
     isActive: userObject.isActive,
     lastActive: userObject.lastActive,
     preferences: userObject.preferences,
     createdAt: userObject.createdAt,
-    updatedAt: userObject.updatedAt
+    updatedAt: userObject.updatedAt,
   };
+
+  return publicProfile;
 };
 
 // Static method to find users by role
 userSchema.statics.findByRole = function(role) {
-  return this.find({ role, isActive: true, isVerified: true });
+  return this.find({ role: role, isActive: true, isVerified: true });
 };
 
 // Static method to find verified users

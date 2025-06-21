@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TextInput, Switch, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useQueryStore } from '@/store/queryStore';
-import { useConnectionStore } from '@/store/connectionStore';
+import useConnectionStore from '@/store/connectionStore';
 import Colors from '@/constants/colors';
 import Button from '@/components/Button';
 import Avatar from '@/components/Avatar';

@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { useConnectionStore } from '@/store/connectionStore';
+import useConnectionStore from '@/store/connectionStore';
+import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Button from '@/components/Button';
 import { MessageCircle, CheckCircle, XCircle, Camera } from 'lucide-react-native';

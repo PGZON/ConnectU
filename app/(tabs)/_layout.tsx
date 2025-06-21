@@ -3,16 +3,31 @@ import { Tabs } from 'expo-router';
 import { MessageCircle, Home, Users, User, BookOpen } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useMessageStore } from '@/store/messageStore';
-import { useConnectionStore } from '@/store/connectionStore';
-import { Platform, Text, View } from 'react-native';
+import useConnectionStore from '@/store/connectionStore';
+import { useAuthStore } from '@/store/authStore';
+import { Platform, Text, View, ActivityIndicator } from 'react-native';
 
 export default function TabLayout() {
-  const { fetchConnections } = useConnectionStore();
+  const { user, isLoading } = useAuthStore();
+  const { fetchConnections, receivedRequests } = useConnectionStore();
   const { getTotalUnreadCount } = useMessageStore();
   
+  console.log('--- [app/(tabs)/_layout.tsx] TabLayout Render ---');
+  console.log(`isLoading: ${isLoading}`);
+  console.log(`User object: ${JSON.stringify(user, null, 2)}`);
+  console.log('--------------------------------------------');
+
   useEffect(() => {
-    fetchConnections();
-  }, [fetchConnections]);
+    if (user) {
+      fetchConnections();
+    }
+  }, [user, fetchConnections]);
+
+  if (isLoading) {
+    return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator /></View>;
+  }
+
+  const requestCount = receivedRequests.length;
 
   return (
     <Tabs
@@ -43,6 +58,8 @@ export default function TabLayout() {
         options={{
           title: 'Network',
           tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
+          tabBarBadge: requestCount > 0 ? requestCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: Colors.secondary },
         }}
       />
       <Tabs.Screen

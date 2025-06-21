@@ -5,11 +5,13 @@ import { useAuthStore } from './authStore';
 
 interface QueryState {
   queries: Query[];
+  userQueries: Query[];
   isLoading: boolean;
   error: string | null;
   hasMore: boolean;
   currentPage: number;
   fetchQueries: (page?: number) => Promise<void>;
+  fetchQueriesForUser: (userId: string) => Promise<void>;
   askQuery: (title: string, content: string, category: string, priority?: string) => Promise<void>;
   answerQuery: (queryId: string, content: string) => Promise<void>;
   refreshQueries: () => Promise<void>;
@@ -17,6 +19,7 @@ interface QueryState {
 
 export const useQueryStore = create<QueryState>((set, get) => ({
   queries: [],
+  userQueries: [],
   isLoading: false,
   error: null,
   hasMore: true,
@@ -91,6 +94,25 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to fetch queries', 
+        isLoading: false 
+      });
+    }
+  },
+
+  fetchQueriesForUser: async (userId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      // Assuming you have an API endpoint like this.
+      // If not, this is a placeholder for the correct API call.
+      const response = await api.getQueriesByUser(userId); 
+      if (response.success && response.data) {
+        set({ userQueries: response.data.queries || [], isLoading: false });
+      } else {
+        throw new Error(response.message || 'Failed to fetch user queries');
+      }
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to fetch user queries', 
         isLoading: false 
       });
     }

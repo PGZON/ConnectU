@@ -15,7 +15,7 @@ interface AuthState {
   signup: (userData: Partial<User>, password: string) => Promise<void>;
   logout: () => void;
   updateProfile: (userData: Partial<User>) => Promise<void>;
-  checkAuth: () => Promise<void>;
+  checkAuthState: () => Promise<void>;
   setTokens: (accessToken: string | null, refreshToken: string | null) => void;
 }
 
@@ -75,6 +75,7 @@ export const useAuthStore = create<AuthState>()(
           }
 
           const user: User = {
+            _id: userData._id || userData.id,
             id: userData._id || userData.id,
             name: userData.name,
             email: userData.email,
@@ -125,6 +126,7 @@ export const useAuthStore = create<AuthState>()(
           if (response.success && response.data) {
             const { user: userData, accessToken, refreshToken } = response.data;
             const user: User = {
+              _id: userData._id,
               id: userData._id,
               name: userData.name,
               email: userData.email,
@@ -154,27 +156,29 @@ export const useAuthStore = create<AuthState>()(
           console.error('Logout error:', error);
         } finally {
           await get().setTokens(null, null);
-          set({ user: null });
+          set({ user: null, isAuthenticated: false, isLoading: false, error: null });
         }
       },
 
-      checkAuth: async () => {
-        set({ isLoading: true });
+      checkAuthState: async () => {
+        if (!get().isLoading) {
+          set({ isLoading: true });
+        }
+        
         try {
-          const [[, accessToken], [, refreshToken]] = await AsyncStorage.multiGet(['auth_token', 'refresh_token']);
+          const token = get().token || await AsyncStorage.getItem('auth_token');
           
-          if (!accessToken || !refreshToken) {
-            await get().setTokens(null, null);
-            set({ user: null, isLoading: false });
+          if (!token) {
+            set({ user: null, isAuthenticated: false, isLoading: false });
             return;
           }
 
-          set({ token: accessToken, refreshToken });
           const response = await api.getMe();
           
           if (response.success && response.data) {
             const userData = response.data;
             const user: User = {
+              _id: userData._id || userData.id,
               id: userData._id || userData.id,
               name: userData.name,
               email: userData.email,
@@ -187,15 +191,13 @@ export const useAuthStore = create<AuthState>()(
               position: userData.designation || userData.position,
             };
             
-            set({ user, isLoading: false });
+            set({ user, isAuthenticated: true, isLoading: false, error: null });
           } else {
-            await get().setTokens(null, null);
-            set({ user: null, isLoading: false });
+            await get().logout();
           }
         } catch (error) {
-          console.log('Auth check failed:', error);
-          await get().setTokens(null, null);
-          set({ user: null, isLoading: false });
+          console.error('Auth check failed:', error);
+          await get().logout();
         }
       },
       
@@ -213,6 +215,7 @@ export const useAuthStore = create<AuthState>()(
           if (response.success && response.data) {
             const updatedUserData = response.data;
             const updatedUser: User = {
+              _id: updatedUserData._id,
               id: updatedUserData._id,
               name: updatedUserData.name,
               email: updatedUserData.email,

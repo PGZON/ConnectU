@@ -231,17 +231,34 @@ connectionSchema.statics.getUserConnections = async function(userId, status = 'a
       ...(status !== 'all' && { status })
     };
 
+    console.log('--- Executing Mongoose Query in getUserConnections ---');
+    console.log('Query:', JSON.stringify(query, null, 2));
+    
+    const rawConnections = await this.find(query).lean();
+    console.log(`Raw connection count from DB: ${rawConnections.length}`);
+    console.log('Raw connections:', JSON.stringify(rawConnections, null, 2));
+    console.log('----------------------------------------------------');
+
     const [connections, total] = await Promise.all([
       this.find(query)
         .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('student alumni', 'name email role profileImageUrl')
-        .lean(),
+        .populate('student') // Populate full student object
+        .populate('alumni'),  // Populate full alumni object
       this.countDocuments(query)
     ]);
 
-    return { connections, total };
+    // Manually construct the response to ensure consistency using getPublicProfile
+    const sanitizedConnections = connections.map(conn => {
+      return {
+        ...conn.toObject(), // Get a plain object representation of the connection
+        student: conn.student ? conn.student.getPublicProfile() : null,
+        alumni: conn.alumni ? conn.alumni.getPublicProfile() : null,
+      };
+    });
+
+    return { connections: sanitizedConnections, total };
   } catch (error) {
     console.error('Error getting user connections:', error);
     return { connections: [], total: 0 };
@@ -336,4 +353,5 @@ connectionSchema.statics.getConnection = async function(userId1, userId2) {
   }
 };
 
-module.exports = mongoose.model('Connection', connectionSchema); 
+const Connection = mongoose.model('Connection', connectionSchema);
+module.exports = Connection; 

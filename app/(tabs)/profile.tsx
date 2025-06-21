@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, Platform, 
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '@/store/authStore';
-import { useConnectionStore } from '@/store/connectionStore';
+import useConnectionStore from '@/store/connectionStore';
 import { useQueryStore } from '@/store/queryStore';
 import Colors from '@/constants/colors';
 import Button from '@/components/Button';
@@ -13,9 +13,9 @@ import { api } from '@/utils/api';
 import PostCard from '@/components/PostCard';
 
 export default function ProfileScreen() {
-  const { user, isLoading: authLoading, checkAuth, logout } = useAuthStore();
+  const { user, isLoading: authLoading, checkAuthState, logout } = useAuthStore();
   const { connections, fetchConnections, isLoading: connLoading } = useConnectionStore();
-  const { queries, fetchQueries, isLoading: queryLoading } = useQueryStore();
+  const { userQueries, fetchQueriesForUser, isLoading: queriesLoading } = useQueryStore();
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -23,6 +23,15 @@ export default function ProfileScreen() {
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  // This is the critical fix. Do not render anything until the user is loaded.
+  if (authLoading || !user) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
 
   // Fetch user posts
   const fetchUserPosts = useCallback(async () => {
@@ -73,23 +82,23 @@ export default function ProfileScreen() {
   // Initial fetch
   useEffect(() => {
     if (!user) {
-      checkAuth();
+      checkAuthState();
       return;
     }
     fetchConnections();
-    fetchQueries();
+    fetchQueriesForUser(user.id);
     fetchUserPosts();
-  }, [user, checkAuth, fetchConnections, fetchQueries, fetchUserPosts]);
+  }, [user, checkAuthState, fetchConnections, fetchQueriesForUser, fetchUserPosts]);
 
   // Pull to refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await checkAuth();
+    await checkAuthState();
     await fetchConnections();
-    await fetchQueries();
+    await fetchQueriesForUser(user?.id);
     await fetchUserPosts();
     setRefreshing(false);
-  }, [checkAuth, fetchConnections, fetchQueries, fetchUserPosts]);
+  }, [checkAuthState, fetchConnections, fetchQueriesForUser, fetchUserPosts, user?.id]);
 
   const handleEditProfile = () => {
     router.push('/edit-profile');
@@ -139,14 +148,6 @@ export default function ProfileScreen() {
     }
   };
 
-  if (authLoading || !user) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
-  }
-
   if (error) {
     return (
       <View style={styles.loadingContainer}>
@@ -159,7 +160,7 @@ export default function ProfileScreen() {
   // Stats
   const connectionsCount = connections.length;
   const postsCount = posts.length;
-  const queriesCount = queries.filter(q => q.studentId === user.id).length;
+  const queriesCount = userQueries.filter(q => q.studentId === user.id).length;
 
   return (
     <ScrollView

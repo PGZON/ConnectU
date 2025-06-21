@@ -1,5 +1,6 @@
 const Connection = require('../models/Connection');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 const { successResponse, notFoundResponse, badRequestResponse, forbiddenResponse } = require('../utils/responseHandler');
 
 // @desc    Send connection request
@@ -33,8 +34,8 @@ const sendConnectionRequest = async (req, res) => {
       status: 'pending'
     });
 
-    await connection.populate('student', 'name email role profileImageUrl');
-    await connection.populate('alumni', 'name email role profileImageUrl');
+    await connection.populate('student', 'name email role profileImageUrl _id');
+    await connection.populate('alumni', 'name email role profileImageUrl _id');
 
     return successResponse(res, connection, 'Connection request sent successfully');
   } catch (error) {
@@ -103,42 +104,37 @@ const rejectConnection = async (req, res) => {
 const getConnections = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
+    const limit = parseInt(req.query.limit) || 100;
+    const { userId } = req.params;
 
-    const connections = await Connection.find({
-      $or: [
-        { student: req.params.userId },
-        { alumni: req.params.userId }
-      ],
-      status: 'accepted'
-    })
-      .populate('student', 'name email role profileImageUrl')
-      .populate('alumni', 'name email role profileImageUrl')
-      .sort({ updatedAt: -1 })
-      .limit(limit)
-      .skip(skip);
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: 'Invalid user ID format' });
+    }
 
-    const total = await Connection.countDocuments({
-      $or: [
-        { student: req.params.userId },
-        { alumni: req.params.userId }
-      ],
-      status: 'accepted'
-    });
+    console.log(`--- Fetching connections for userId: ${userId} ---`);
 
-    return successResponse(res, {
-      connections,
-      pagination: {
-        currentPage: page,
-        totalPages: Math.ceil(total / limit),
-        totalItems: total,
-        itemsPerPage: limit
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    const { connections, total } = await Connection.getUserConnections(userObjectId, 'all', page, limit);
+
+    console.log(`--- Found ${connections.length} connections for userId: ${userId} ---`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Connections retrieved successfully',
+      data: {
+        connections,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit)
+        }
       }
-    }, 'Connections retrieved successfully');
+    });
   } catch (error) {
-    console.error('Get connections error:', error);
-    return badRequestResponse(res, error.message);
+    console.error('Error in getConnections controller:', error);
+    res.status(500).json({ success: false, message: 'Server error retrieving connections' });
   }
 };
 

@@ -227,24 +227,28 @@ const uploadCoverImage = async (req, res) => {
 const getAllUsers = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = parseInt(req.query.limit) || 100;
     const skip = (page - 1) * limit;
 
-    const users = await User.find({ 
-      isActive: true, 
+    const searchFilter = {
+      isActive: true,
       isVerified: true,
       _id: { $ne: req.user._id } // Exclude current user
-    })
+    };
+
+    // Students discover alumni, alumni discover everyone else
+    if (req.user.role === 'student') {
+      searchFilter.role = 'alumni';
+    } 
+    // No additional role filter is needed for alumni, they see all other valid users.
+
+    const users = await User.find(searchFilter)
       .limit(limit)
       .skip(skip)
-      .select('-password')
+      .select('-password -__v')
       .sort({ createdAt: -1 });
 
-    const total = await User.countDocuments({ 
-      isActive: true, 
-      isVerified: true,
-      _id: { $ne: req.user._id } 
-    });
+    const total = await User.countDocuments(searchFilter);
 
     const usersResponse = users.map(user => user.getPublicProfile());
 
@@ -256,10 +260,11 @@ const getAllUsers = async (req, res) => {
         totalItems: total,
         itemsPerPage: limit
       }
-    }, 'All users retrieved successfully');
+    }, 'Users retrieved successfully');
+
   } catch (error) {
     console.error('Get all users error:', error);
-    return badRequestResponse(res, error.message);
+    return badRequestResponse(res, 'Error retrieving users');
   }
 };
 

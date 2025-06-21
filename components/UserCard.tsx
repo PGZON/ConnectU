@@ -1,96 +1,96 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User } from '@/types';
+import { User, ConnectionStatus } from '@/types';
 import Colors from '@/constants/colors';
 import Avatar from './Avatar';
 import Button from './Button';
+import { Check, X } from 'lucide-react-native';
 
 interface UserCardProps {
   user: User;
-  connectionStatus?: 'none' | 'pending' | 'accepted';
+  connectionStatus: {
+    status: 'none' | 'pending_sent' | 'pending_received' | 'connected';
+    connectionId?: string;
+  };
   onConnect?: (userId: string) => void;
-  onMessage?: (userId: string) => void;
+  onAccept?: (connectionId: string) => void;
+  onDecline?: (connectionId: string) => void;
+  onWithdraw?: (connectionId: string) => void;
+  onDisconnect?: (connectionId: string) => void;
 }
 
 export default function UserCard({ 
   user, 
-  connectionStatus = 'none',
+  connectionStatus,
   onConnect,
-  onMessage
+  onAccept,
+  onDecline,
+  onWithdraw,
+  onDisconnect
 }: UserCardProps) {
   const router = useRouter();
 
-  const handleProfilePress = () => {
-    router.push(`/profile/${user.id}`);
-  };
-
-  const handleConnect = () => {
-    if (onConnect) {
-      onConnect(user.id);
+  const handleAction = (action?: (id: string) => void, id?: string) => {
+    if (action && id) {
+      action(id);
+    } else if (action && !id) {
+      action(user._id);
     }
   };
 
-  const handleMessage = () => {
-    if (onMessage) {
-      onMessage(user.id);
-    } else {
-      router.push(`/messages/${user.id}`);
+  const renderRoleBadge = () => {
+    const roleStyle = user.role === 'alumni' ? styles.alumniBadge : styles.studentBadge;
+    return (
+      <View style={[styles.badge, roleStyle]}>
+        <Text style={styles.badgeText}>{user.role}</Text>
+      </View>
+    );
+  };
+  
+  const renderButtons = () => {
+    const { status, connectionId } = connectionStatus;
+
+    switch (status) {
+      case 'none':
+        return <Button title="Connect" onPress={() => handleAction(onConnect)} variant="outline" size="small" />;
+      case 'pending_sent':
+        return <Button title="Requested" onPress={() => handleAction(onWithdraw, connectionId)} variant="secondary" size="small" />;
+      case 'pending_received':
+        return (
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity onPress={() => handleAction(onDecline, connectionId)} style={[styles.iconButton, styles.declineButton]}>
+              <X size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleAction(onAccept, connectionId)} style={[styles.iconButton, styles.acceptButton]}>
+              <Check size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        );
+      case 'connected':
+        return <Button title="Disconnect" onPress={() => handleAction(onDisconnect, connectionId)} variant="danger" size="small" />;
+      default:
+        return null;
     }
   };
 
   return (
     <TouchableOpacity 
       style={styles.container}
-      onPress={handleProfilePress}
+      onPress={() => router.push(`/profile/${user._id}`)}
       activeOpacity={0.7}
     >
-      <Avatar uri={user.profileImageUrl} size={60} />
-      
+      <Avatar uri={user.profileImageUrl} size={50} />
       <View style={styles.infoContainer}>
-        <Text style={styles.name}>{user.name}</Text>
-        <Text style={styles.role}>{user.role}</Text>
-        
-        {user.role === 'alumni' && (
-          <Text style={styles.position}>
-            {user.position} at {user.company}
-          </Text>
-        )}
-        
-        {user.role === 'student' && (
-          <Text style={styles.department}>
-            {user.department}, Class of {user.graduationYear}
-          </Text>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={styles.name}>{user.name}</Text>
+          {renderRoleBadge()}
+        </View>
+        <Text style={styles.subtitle} numberOfLines={1}>
+          {user.role === 'alumni' ? `${user.position} at ${user.company}` : `${user.department}`}
+        </Text>
       </View>
-
-      <View style={styles.actionsContainer}>
-        {connectionStatus === 'none' && (
-          <Button
-            title="Connect"
-            onPress={handleConnect}
-            variant="outline"
-            size="small"
-          />
-        )}
-        
-        {connectionStatus === 'pending' && (
-          <Button
-            title="Pending"
-            disabled={true}
-            size="small"
-          />
-        )}
-        
-        {connectionStatus === 'accepted' && (
-          <Button
-            title="Message"
-            onPress={handleMessage}
-            variant="primary"
-            size="small"
-          />
-        )}
-      </View>
+      {renderButtons()}
     </TouchableOpacity>
   );
 }
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: 12,
     padding: 12,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   infoContainer: {
     flex: 1,
@@ -113,21 +113,41 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text,
   },
-  role: {
-    fontSize: 14,
+  subtitle: {
+    fontSize: 13,
     color: Colors.textSecondary,
-    textTransform: 'capitalize',
-    marginBottom: 2,
-  },
-  position: {
-    fontSize: 13,
-    color: Colors.text,
-  },
-  department: {
-    fontSize: 13,
-    color: Colors.text,
+    marginTop: 2,
   },
   actionsContainer: {
+    flexDirection: 'row',
+  },
+  iconButton: {
     marginLeft: 8,
+    padding: 8,
+    borderRadius: 50,
+  },
+  acceptButton: {
+    backgroundColor: Colors.success,
+  },
+  declineButton: {
+    backgroundColor: Colors.danger,
+  },
+  badge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  alumniBadge: {
+    backgroundColor: Colors.primary,
+  },
+  studentBadge: {
+    backgroundColor: Colors.secondary,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
 });

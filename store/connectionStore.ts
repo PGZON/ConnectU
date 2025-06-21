@@ -2,237 +2,190 @@ import { create } from 'zustand';
 import { Connection, User } from '@/types';
 import { api } from '@/utils/api';
 import { useAuthStore } from './authStore';
+import Toast from 'react-native-toast-message';
 
 interface ConnectionState {
   connections: Connection[];
-  pendingRequests: Connection[];
   allUsers: User[];
+  discoverUsers: User[];
+  receivedRequests: Connection[];
+  sentRequests: Connection[];
+  establishedConnections: Connection[];
   isLoading: boolean;
   error: string | null;
+  fetchAllUsers: (page?: number, limit?: number) => Promise<void>;
   fetchConnections: () => Promise<void>;
-  fetchAllUsers: () => Promise<void>;
-  sendConnectionRequest: (alumniId: string, message?: string) => Promise<void>;
-  acceptConnectionRequest: (connectionId: string) => Promise<void>;
-  declineConnectionRequest: (connectionId: string) => Promise<void>;
-  getConnectionStatus: (userId: string) => 'none' | 'pending' | 'accepted';
-  getConnectedUsers: () => User[];
+  processConnections: () => void;
+  sendConnectionRequest: (alumniId: string, message: string) => Promise<any>;
+  acceptConnection: (connectionId: string) => Promise<void>;
+  declineConnection: (connectionId: string) => Promise<void>;
+  getConnectionStatus: (otherUserId: string) => { status: string; connectionId?: string };
 }
 
-const getUserId = () => {
-  const { user } = useAuthStore.getState();
-  return user?.id || user?._id || null;
-};
+const useConnectionStore = create<ConnectionState>((set, get) => {
+  const getUserId = () => useAuthStore.getState().user?.id;
 
-export const useConnectionStore = create<ConnectionState>((set, get) => ({
-  connections: [],
-  pendingRequests: [],
-  allUsers: [],
-  isLoading: false,
-  error: null,
-  
-  fetchAllUsers: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const response = await api.getAllUsers();
-      if (response.success && response.data && Array.isArray(response.data.users)) {
-        const users = response.data.users.map((user: any) => ({
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          // Add other relevant fields from your User model
-        }));
-        set({ allUsers: users, isLoading: false });
-      } else {
-        throw new Error(response.message || 'Failed to fetch users');
-      }
-    } catch (error) {
-      console.error('fetchAllUsers error:', error);
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to fetch users', 
-        isLoading: false 
-      });
-    }
-  },
-  
-  fetchConnections: async () => {
-    // Guard: Ensure userId is available before making API call
-    const userId = getUserId();
-    if (!userId) {
-      console.warn('fetchConnections: User ID is undefined! Delaying API call until user is loaded.');
-      return;
-    }
+  return {
+    connections: [],
+    allUsers: [],
+    discoverUsers: [],
+    receivedRequests: [],
+    sentRequests: [],
+    establishedConnections: [],
+    isLoading: false,
+    error: null,
 
-    set({ isLoading: true, error: null });
-    
-    try {
-      const response = await api.getConnections(userId, 1, 100);
+    processConnections: () => {
+      const userId = getUserId();
+      if (!userId) return;
+
+      const { connections, allUsers } = get();
       
-      if (response.success && response.data && Array.isArray(response.data.connections)) {
-        const transformedConnections: Connection[] = response.data.connections.map((conn: any) => ({
-          id: conn._id,
-          senderId: conn.student._id,
-          sender: {
-            id: conn.student._id,
-            name: conn.student.name,
-            email: conn.student.email,
-            role: conn.student.role,
-            profileImageUrl: conn.student.profileImageUrl,
-          },
-          receiverId: conn.alumni._id,
-          receiver: {
-            id: conn.alumni._id,
-            name: conn.alumni.name,
-            email: conn.alumni.email,
-            role: conn.alumni.role,
-            profileImageUrl: conn.alumni.profileImageUrl,
-          },
-          status: conn.status,
-          createdAt: conn.createdAt,
-          updatedAt: conn.updatedAt,
-        }));
+      const received = connections.filter(c => c.alumni?._id === userId && c.status === 'pending');
+      const sent = connections.filter(c => c.student?._id === userId && c.status === 'pending');
+      const established = connections.filter(c => c.status === 'accepted');
 
-        const acceptedConnections = transformedConnections.filter(conn => conn.status === 'accepted');
-        const pendingConnections = transformedConnections.filter(conn => conn.status === 'pending');
-        
-        set({ 
-          connections: acceptedConnections, 
-          pendingRequests: pendingConnections,
-          isLoading: false 
-        });
-      } else {
-        throw new Error(response.message || 'Failed to fetch connections');
-      }
-    } catch (error) {
-      console.error('fetchConnections error:', error);
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to fetch connections', 
-        isLoading: false 
+      const connectedUserIds = new Set<string>();
+      userId && connectedUserIds.add(userId);
+
+      connections.forEach(c => {
+        if(c.student?._id) connectedUserIds.add(c.student._id);
+        if(c.alumni?._id) connectedUserIds.add(c.alumni._id);
       });
-    }
-  },
-  
-  sendConnectionRequest: async (alumniId, message) => {
-    set({ isLoading: true, error: null });
-    
-    try {
-      const requestData = {
-        alumniId,
-        message: message || '',
-        connectionType: 'general',
-      };
 
-      const response = await api.sendConnectionRequest(requestData);
+      const discover = allUsers.filter(u => !connectedUserIds.has(u._id));
       
-      if (response.success) {
-        // Refresh connections to get updated list
-        await get().fetchConnections();
-      } else {
-        throw new Error(response.message || 'Failed to send connection request');
-      }
-    } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to send connection request', 
-        isLoading: false 
-      });
-    }
-  },
-  
-  acceptConnectionRequest: async (connectionId) => {
-    set({ isLoading: true, error: null });
-    
-    try {
-      const response = await api.acceptConnection(connectionId);
-      
-      if (response.success) {
-        // Refresh connections to get updated list
-        await get().fetchConnections();
-      } else {
-        throw new Error(response.message || 'Failed to accept connection request');
-      }
-    } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to accept connection request', 
-        isLoading: false 
-      });
-    }
-  },
-  
-  declineConnectionRequest: async (connectionId) => {
-    set({ isLoading: true, error: null });
-    
-    try {
-      const response = await api.rejectConnection(connectionId);
-      
-      if (response.success) {
-        // Refresh connections to get updated list
-        await get().fetchConnections();
-      } else {
-        throw new Error(response.message || 'Failed to decline connection request');
-      }
-    } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to decline connection request', 
-        isLoading: false 
-      });
-    }
-  },
-  
-  getConnectionStatus: (userId) => {
-    const currentUser = useAuthStore.getState().user;
-    if (!currentUser) return 'none';
+      console.log('--- FINAL PROCESSED STATE ---');
+      console.log('Received Requests (Content):', JSON.stringify(received, null, 2));
+      console.log('Sent Requests (Content):', JSON.stringify(sent, null, 2));
+      console.log('Established Connections (Content):', JSON.stringify(established, null, 2));
+      console.log('-----------------------------');
 
-    const { connections, pendingRequests } = get();
-    
-    const acceptedConnection = connections.find(
-      conn => 
-        (conn.senderId === currentUser.id && conn.receiverId === userId) || 
-        (conn.senderId === userId && conn.receiverId === currentUser.id)
-    );
-    
-    if (acceptedConnection) {
-      return 'accepted';
-    }
-    
-    const pendingConnection = [...connections, ...pendingRequests].find(
-      conn => 
-        (conn.senderId === currentUser.id && conn.receiverId === userId) || 
-        (conn.senderId === userId && conn.receiverId === currentUser.id)
-    );
-    
-    if (pendingConnection) {
-      return 'pending';
-    }
-    
-    return 'none';
-  },
-  
-  getConnectedUsers: () => {
-    const currentUser = useAuthStore.getState().user;
-    if (!currentUser) return [];
+      set({
+        receivedRequests: received,
+        sentRequests: sent,
+        establishedConnections: established,
+        discoverUsers: discover,
+      });
+    },
 
-    const { connections } = get();
-    
-    const connectedUserIds = connections
-      .filter(conn => conn.status === 'accepted')
-      .map(conn => 
-        conn.senderId === currentUser.id ? conn.receiverId : conn.senderId
-      );
-    
-    // Extract unique users from connections
-    const connectedUsers: User[] = [];
-    const seenIds = new Set();
-    
-    connections.forEach(conn => {
-      if (conn.status === 'accepted') {
-        const otherUser = conn.senderId === currentUser.id ? conn.receiver : conn.sender;
-        if (otherUser && !seenIds.has(otherUser.id)) {
-          connectedUsers.push(otherUser);
-          seenIds.add(otherUser.id);
+    fetchAllUsers: async (page = 1, limit = 50) => {
+      set({ isLoading: true });
+      try {
+        const response = await api.getAllUsers(page, limit);
+        console.log('--- Raw API Response from getAllUsers ---');
+        console.log(JSON.stringify(response, null, 2));
+        console.log('------------------------------------');
+        if (response.success) {
+          set({ allUsers: response.data?.users || [] });
+          get().processConnections();
+        } else {
+          set({ error: response.message || 'Failed to fetch users' });
         }
+      } catch (error: any) {
+        set({ error: error.message });
+      } finally {
+        set({ isLoading: false });
       }
-    });
+    },
+
+    fetchConnections: async () => {
+      const userId = getUserId();
+      if (!userId) return;
+      set({ isLoading: true });
+      try {
+        const response = await api.getConnections(userId, 1, 100);
+        console.log('--- Raw API Response from getConnections ---');
+        console.log(JSON.stringify(response, null, 2));
+        console.log('---------------------------------------');
+        if (response.success) {
+          const backendConnections = response.data?.connections || [];
+          set({ connections: backendConnections });
+          get().processConnections();
+        } else {
+          set({ error: response.message || 'Failed to fetch connections' });
+        }
+      } catch (error: any) {
+        set({ error: error.message });
+      } finally {
+        set({ isLoading: false });
+      }
+    },
+
+    sendConnectionRequest: async (alumniId, message) => {
+      try {
+        const response = await api.sendConnectionRequest({ alumniId: alumniId });
+        if (response.success) {
+          Toast.show({ type: 'success', text1: 'Request Sent!' });
+          get().fetchConnections();
+        } else {
+          throw new Error(response.message);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to send request';
+        Toast.show({ type: 'error', text1: 'Error', text2: message });
+        console.error('sendConnectionRequest error:', error);
+      }
+    },
+
+    acceptConnection: async (connectionId) => {
+      set({ isLoading: true });
+      try {
+        const response = await api.acceptConnection(connectionId);
+        if (response.success) {
+          Toast.show({ type: 'success', text1: 'Connection Accepted' });
+          get().fetchConnections();
+        } else {
+          throw new Error(response.message);
+        }
+      } catch (error) {
+         const message = error instanceof Error ? error.message : 'Failed to accept request';
+         Toast.show({ type: 'error', text1: 'Error', text2: message });
+         console.error('acceptConnectionRequest error:', error);
+      } finally {
+        set({ isLoading: false });
+      }
+    },
+
+    declineConnection: async (connectionId: string) => {
+      set({ isLoading: true });
+      try {
+        const response = await api.rejectConnection(connectionId);
+        if (response.success) {
+          Toast.show({ type: 'info', text1: 'Request Declined' });
+          get().fetchConnections(); // Refresh data
+        } else {
+          throw new Error(response.message);
+        }
+      } catch (error: any) {
+        const message = error.message || 'Failed to decline request';
+        Toast.show({ type: 'error', text1: 'Error', text2: message });
+      } finally {
+        set({ isLoading: false });
+      }
+    },
     
-    return connectedUsers;
-  },
-}));
+    getConnectionStatus: (otherUserId: string) => {
+      const { sentRequests, receivedRequests, establishedConnections } = get();
+      
+      if (establishedConnections.some(c => c.student?.id === otherUserId || c.alumni?.id === otherUserId)) {
+        const conn = establishedConnections.find(c => c.student?.id === otherUserId || c.alumni?.id === otherUserId);
+        return { status: 'connected', connectionId: conn?._id };
+      }
+      
+      if (sentRequests.some(c => c.alumni?.id === otherUserId)) {
+        const conn = sentRequests.find(c => c.alumni?.id === otherUserId);
+        return { status: 'pending_sent', connectionId: conn?._id };
+      }
+      
+      if (receivedRequests.some(c => c.student?.id === otherUserId)) {
+        const conn = receivedRequests.find(c => c.student?.id === otherUserId);
+        return { status: 'pending_received', connectionId: conn?._id };
+      }
+      
+      return { status: 'none', connectionId: undefined };
+    },
+  };
+});
+
+export default useConnectionStore;

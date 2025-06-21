@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { StyleSheet, View, FlatList, RefreshControl, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
-import { useConnectionStore } from '@/store/connectionStore';
+import useConnectionStore from '@/store/connectionStore';
 import { useMessageStore } from '@/store/messageStore';
+import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Avatar from '@/components/Avatar';
 import { useRouter } from 'expo-router';
@@ -9,10 +10,16 @@ import { formatTimeAgo } from '@/utils/dateUtils';
 import { User } from '@/types';
 
 export default function MessagesScreen() {
-  const { connections, isLoading: connectionsLoading, fetchConnections, getConnectedUsers } = useConnectionStore();
+  const { connections, isLoading: connectionsLoading, fetchConnections } = useConnectionStore();
+  const { user: currentUser } = useAuthStore();
   const { messages, fetchMessages, getUnreadCount } = useMessageStore();
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
+
+  const connectedUsers = useMemo(() => {
+    if (!currentUser) return [];
+    return connections.map(c => c.sender.id === currentUser.id ? c.receiver : c.sender);
+  }, [connections, currentUser]);
 
   useEffect(() => {
     fetchConnections();
@@ -20,30 +27,26 @@ export default function MessagesScreen() {
 
   useEffect(() => {
     // Fetch messages for all connected users
-    const connectedUsers = getConnectedUsers();
     connectedUsers.forEach(user => {
-      fetchMessages(user.id);
+      if (user?.id) fetchMessages(user.id);
     });
-  }, [connections, fetchMessages, getConnectedUsers]);
+  }, [connectedUsers, fetchMessages]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchConnections();
-    const connectedUsers = getConnectedUsers();
-    await Promise.all(connectedUsers.map(user => fetchMessages(user.id)));
+    // Message fetching will be triggered by the useEffect above
     setRefreshing(false);
   };
 
   const handleUserPress = (user: User) => {
-    router.push(`/messages/${user.id}`);
+    if (user?.id) router.push(`/messages/${user.id}`);
   };
 
   const getLastMessage = (userId: string) => {
     const userMessages = messages[userId] || [];
     return userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
   };
-
-  const connectedUsers = getConnectedUsers();
 
   if (connectionsLoading && !refreshing && connectedUsers.length === 0) {
     return (
@@ -56,9 +59,10 @@ export default function MessagesScreen() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={connectedUsers}
+        data={connectedUsers.filter(Boolean)} // Filter out any potential null/undefined users
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
+          if (!item?.id) return null; // Defensive check
           const lastMessage = getLastMessage(item.id);
           const unreadCount = getUnreadCount(item.id);
           
@@ -82,17 +86,12 @@ export default function MessagesScreen() {
               <View style={styles.messageInfo}>
                 <Text style={styles.userName}>{item.name}</Text>
                 {lastMessage ? (
-                  <>
-                    <Text 
-                      style={[
-                        styles.lastMessage,
-                        unreadCount > 0 && styles.unreadMessage
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {lastMessage.message}
-                    </Text>
-                  </>
+                  <Text 
+                    style={[styles.lastMessage, unreadCount > 0 && styles.unreadMessage]}
+                    numberOfLines={1}
+                  >
+                    {lastMessage.message}
+                  </Text>
                 ) : (
                   <Text style={styles.noMessages}>No messages yet</Text>
                 )}
@@ -117,8 +116,8 @@ export default function MessagesScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No messages yet</Text>
-            <Text style={styles.emptySubtext}>Connect with alumni or students to start chatting</Text>
+            <Text style={styles.emptyText}>No active conversations</Text>
+            <Text style={styles.emptySubtext}>Connect with people to start chatting.</Text>
           </View>
         }
       />
