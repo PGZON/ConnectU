@@ -3,7 +3,6 @@ import { StyleSheet, View, FlatList, RefreshControl, ActivityIndicator, Text, Te
 import { useConnectionStore } from '@/store/connectionStore';
 import UserCard from '@/components/UserCard';
 import Colors from '@/constants/colors';
-import { mockUsers } from '@/mocks/users';
 import { User } from '@/types';
 import { Search } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -12,8 +11,10 @@ export default function NetworkScreen() {
   const { 
     connections, 
     pendingRequests, 
+    allUsers,
     isLoading, 
     fetchConnections, 
+    fetchAllUsers,
     sendConnectionRequest,
     acceptConnectionRequest,
     getConnectionStatus 
@@ -26,15 +27,16 @@ export default function NetworkScreen() {
 
   useEffect(() => {
     fetchConnections();
-  }, [fetchConnections]);
+    fetchAllUsers();
+  }, [fetchConnections, fetchAllUsers]);
 
   useEffect(() => {
     // Filter users based on search query
     if (searchQuery.trim() === '') {
-      setFilteredUsers(mockUsers);
+      setFilteredUsers(allUsers);
     } else {
       const query = searchQuery.toLowerCase();
-      const filtered = mockUsers.filter(user => 
+      const filtered = allUsers.filter(user => 
         user.name.toLowerCase().includes(query) || 
         (user.department && user.department.toLowerCase().includes(query)) ||
         (user.company && user.company.toLowerCase().includes(query)) ||
@@ -42,11 +44,11 @@ export default function NetworkScreen() {
       );
       setFilteredUsers(filtered);
     }
-  }, [searchQuery]);
+  }, [searchQuery, allUsers]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchConnections();
+    await Promise.all([fetchConnections(), fetchAllUsers()]);
     setRefreshing(false);
   };
 

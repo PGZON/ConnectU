@@ -432,6 +432,18 @@ class ApiClient {
   async getPollResults(pollId: string): Promise<ApiResponse<any>> {
     return this.request(`/polls/${pollId}/results`);
   }
+
+  async searchUsers(query: string, role?: string, department?: string, limit = 20): Promise<ApiResponse<any[]>> {
+    const params = new URLSearchParams({ q: query, limit: limit.toString() });
+    if (role) params.append('role', role);
+    if (department) params.append('department', department);
+    return this.request(`/users/search?${params.toString()}`);
+  }
+
+  async getAllUsers(page = 1, limit = 20): Promise<PaginatedResponse<any>> {
+    const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
+    return this.request(`/users/all?${params.toString()}`, { method: 'GET' });
+  }
 }
 
 // Create and export API instance

@@ -221,6 +221,48 @@ const uploadCoverImage = async (req, res) => {
   }
 };
 
+// @desc    Get all users
+// @route   GET /api/users/all
+// @access  Private
+const getAllUsers = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const users = await User.find({ 
+      isActive: true, 
+      isVerified: true,
+      _id: { $ne: req.user._id } // Exclude current user
+    })
+      .limit(limit)
+      .skip(skip)
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    const total = await User.countDocuments({ 
+      isActive: true, 
+      isVerified: true,
+      _id: { $ne: req.user._id } 
+    });
+
+    const usersResponse = users.map(user => user.getPublicProfile());
+
+    return successResponse(res, {
+      users: usersResponse,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        itemsPerPage: limit
+      }
+    }, 'All users retrieved successfully');
+  } catch (error) {
+    console.error('Get all users error:', error);
+    return badRequestResponse(res, error.message);
+  }
+};
+
 module.exports = {
   getUserProfile,
   updateUserProfile,
@@ -228,5 +270,6 @@ module.exports = {
   searchUsers,
   deleteUser,
   uploadProfileImage,
-  uploadCoverImage
+  uploadCoverImage,
+  getAllUsers,
 }; 

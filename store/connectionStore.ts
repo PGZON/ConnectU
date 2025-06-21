@@ -6,9 +6,11 @@ import { useAuthStore } from './authStore';
 interface ConnectionState {
   connections: Connection[];
   pendingRequests: Connection[];
+  allUsers: User[];
   isLoading: boolean;
   error: string | null;
   fetchConnections: () => Promise<void>;
+  fetchAllUsers: () => Promise<void>;
   sendConnectionRequest: (alumniId: string, message?: string) => Promise<void>;
   acceptConnectionRequest: (connectionId: string) => Promise<void>;
   declineConnectionRequest: (connectionId: string) => Promise<void>;
@@ -24,8 +26,34 @@ const getUserId = () => {
 export const useConnectionStore = create<ConnectionState>((set, get) => ({
   connections: [],
   pendingRequests: [],
+  allUsers: [],
   isLoading: false,
   error: null,
+  
+  fetchAllUsers: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.getAllUsers();
+      if (response.success && response.data && Array.isArray(response.data.users)) {
+        const users = response.data.users.map((user: any) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          // Add other relevant fields from your User model
+        }));
+        set({ allUsers: users, isLoading: false });
+      } else {
+        throw new Error(response.message || 'Failed to fetch users');
+      }
+    } catch (error) {
+      console.error('fetchAllUsers error:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to fetch users', 
+        isLoading: false 
+      });
+    }
+  },
   
   fetchConnections: async () => {
     // Guard: Ensure userId is available before making API call

@@ -9,7 +9,8 @@ const {
   searchUsers,
   deleteUser,
   uploadProfileImage,
-  uploadCoverImage
+  uploadCoverImage,
+  getAllUsers
 } = require('../controllers/userController');
 
 // Protected routes
@@ -19,6 +20,7 @@ router.get('/role/:role', protect, validatePagination, getUsersByRole);
 router.get('/search', protect, searchUsers);
 router.post('/upload/profile-image', protect, uploadProfileImage);
 router.post('/upload/cover-image', protect, uploadCoverImage);
+router.get('/all', protect, getAllUsers);
 
 // Admin routes
 router.delete('/:id', protect, requireAdmin, deleteUser);
