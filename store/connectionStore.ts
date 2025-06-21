@@ -53,15 +53,16 @@ const useConnectionStore = create<ConnectionState>((set, get) => {
         return c.student?._id === userId ? c.alumni! : c.student!;
       }).filter(Boolean);
 
-      const connectedUserIds = new Set<string>();
-      userId && connectedUserIds.add(userId);
+      const nonDiscoverableUserIds = new Set<string>([userId]);
 
       connections.forEach(c => {
-        if(c.student?._id) connectedUserIds.add(c.student._id);
-        if(c.alumni?._id) connectedUserIds.add(c.alumni._id);
+        if (c.status === 'pending' || c.status === 'accepted') {
+          if (c.student?._id) nonDiscoverableUserIds.add(c.student._id);
+          if (c.alumni?._id) nonDiscoverableUserIds.add(c.alumni._id);
+        }
       });
 
-      const discover = allUsers.filter(u => !connectedUserIds.has(u._id));
+      const discover = allUsers.filter(u => !nonDiscoverableUserIds.has(u._id));
       
       console.log('--- FINAL PROCESSED STATE ---');
       console.log('Received Requests (Content):', JSON.stringify(received, null, 2));
@@ -191,10 +192,13 @@ const useConnectionStore = create<ConnectionState>((set, get) => {
 
     disconnectUser: async (connectionId: string) => {
       try {
-        const response = await api.rejectConnection(connectionId);
+        const response = await api.disconnectConnection(connectionId);
         if (response.success) {
           Toast.show({ type: 'info', text1: 'User Disconnected' });
-          get().fetchConnections();
+          set(state => ({
+            connections: state.connections.filter(c => c._id !== connectionId)
+          }));
+          get().processConnections();
         } else {
           throw new Error(response.message);
         }

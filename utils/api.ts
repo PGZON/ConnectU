@@ -346,6 +346,12 @@ class ApiClient {
     });
   }
 
+  async disconnectConnection(connectionId: string): Promise<ApiResponse> {
+    return this.request(`/connections/${connectionId}/disconnect`, {
+      method: 'POST',
+    });
+  }
+
   async getConnections(userId: string, page = 1, limit = 20): Promise<PaginatedResponse<any>> {
     return this.request(`/connections/user/${userId}?page=${page}&limit=${limit}`);
   }

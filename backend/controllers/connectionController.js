@@ -2,6 +2,8 @@ const Connection = require('../models/Connection');
 const User = require('../models/User');
 const mongoose = require('mongoose');
 const { successResponse, notFoundResponse, badRequestResponse, forbiddenResponse } = require('../utils/responseHandler');
+const { validateRequest } = require('../middleware/validate');
+const { body } = require('express-validator');
 
 // @desc    Send connection request
 // @route   POST /api/connections/request
@@ -15,16 +17,25 @@ const sendConnectionRequest = async (req, res) => {
       return notFoundResponse(res, 'Alumni not found or not verified');
     }
 
-    const existingConnection = await Connection.findOne({
+    const existingActiveConnection = await Connection.findOne({
       $or: [
         { student: req.user._id, alumni: alumniId },
         { student: alumniId, alumni: req.user._id }
-      ]
+      ],
+      status: { $in: ['pending', 'accepted'] }
     });
 
-    if (existingConnection) {
-      return badRequestResponse(res, 'Connection request already exists');
+    if (existingActiveConnection) {
+      return badRequestResponse(res, `An active connection or pending request already exists.`);
     }
+
+    await Connection.deleteMany({
+      $or: [
+        { student: req.user._id, alumni: alumniId },
+        { student: alumniId, alumni: req.user._id }
+      ],
+      status: { $nin: ['pending', 'accepted'] }
+    });
 
     const connection = await Connection.create({
       student: req.user._id,
@@ -286,6 +297,37 @@ const declineConnectionRequest = async (req, res) => {
   }
 };
 
+exports.disconnectConnection = async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const userId = req.user._id;
+
+    const connection = await Connection.findById(connectionId);
+
+    if (!connection) {
+      return notFoundResponse(res, 'Connection not found.');
+    }
+
+    // Ensure the current user is part of this connection
+    if (connection.student.toString() !== userId.toString() && connection.alumni.toString() !== userId.toString()) {
+      return forbiddenResponse(res, 'You are not authorized to modify this connection.');
+    }
+
+    // Instead of changing status, we permanently delete the connection
+    await Connection.findByIdAndDelete(connectionId);
+
+    return successResponse(res, null, 'Connection successfully disconnected and removed.');
+
+  } catch (error) {
+    console.error('Disconnect connection error:', error);
+    return badRequestResponse(res, 'Failed to disconnect connection.');
+  }
+};
+
+exports.getConnectionsByUser = async (req, res) => {
+  // ...
+};
+
 module.exports = {
   sendConnectionRequest,
   acceptConnection,
@@ -296,5 +338,7 @@ module.exports = {
   blockConnection,
   updateConnectionStrength,
   acceptConnectionRequest,
-  declineConnectionRequest
+  declineConnectionRequest,
+  disconnectConnection,
+  getConnectionsByUser
 }; 

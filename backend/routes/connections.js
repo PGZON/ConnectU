@@ -13,6 +13,8 @@ const {
   updateConnectionStrength,
   acceptConnectionRequest,
   declineConnectionRequest,
+  disconnectConnection,
+  getConnectionsByUser,
 } = require('../controllers/connectionController');
 
 // Protected routes
@@ -26,5 +28,7 @@ router.put('/:id/block', protect, requireVerification, blockConnection);
 router.put('/:id/strength', protect, requireVerification, updateConnectionStrength);
 router.put('/:connectionId/accept', protect, requireVerification, acceptConnectionRequest);
 router.put('/:connectionId/decline', protect, requireVerification, declineConnectionRequest);
+router.route('/:connectionId/reject').post(protect, rejectConnection);
+router.route('/:connectionId/disconnect').post(protect, disconnectConnection);
 
 module.exports = router; 
