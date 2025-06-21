@@ -12,7 +12,8 @@ import { User } from '@/types';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { messages, fetchMessages, sendRealtimeMessage, markAsRead, error } = useMessageStore();
+  const { sendRealtimeMessage, fetchMessages, markAsRead, error } = useMessageStore();
+  const userMessages = useMessageStore(state => state.messages[id!] || []);
   const { user: currentUser } = useAuthStore();
   const { connectedUsers } = useConnectionStore();
   const [messageText, setMessageText] = useState('');
@@ -20,24 +21,24 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
 
-  const userMessages = messages[id] || [];
+  useEffect(() => {
+    if (id) {
+      fetchMessages(id);
+      markAsRead(id);
+    }
+  }, [id, fetchMessages, markAsRead]);
 
   useEffect(() => {
     if (connectedUsers) {
       const foundUser = connectedUsers.find(u => u._id === id);
       setChatUser(foundUser);
     }
-
-    if (id) {
-      fetchMessages(id);
-      markAsRead(id);
-    }
-  }, [id, fetchMessages, markAsRead, connectedUsers]);
+  }, [id, connectedUsers]);
 
   const handleSend = () => {
-    if (messageText.trim() === '' || !id) return;
+    if (messageText.trim() === '' || !chatUser) return;
     
-    sendRealtimeMessage(id, messageText.trim());
+    sendRealtimeMessage(chatUser, messageText.trim());
     setMessageText('');
     
     setTimeout(() => {

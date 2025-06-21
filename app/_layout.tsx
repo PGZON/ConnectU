@@ -5,6 +5,8 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+import { socketService } from '@/utils/socket';
+import { useMessageStore } from '@/store/messageStore';
 
 const InitialLayout = () => {
   const { user, isLoading, checkAuthState } = useAuthStore();
@@ -22,14 +24,31 @@ const InitialLayout = () => {
   }, []);
 
   useEffect(() => {
-    const inAuthGroup = segments[0] === '(auth)';
+    if (isLoading) return; // Wait until loading is complete
 
-    if (isLoading) return; // Wait until loading is false
+    const inAuthScreens = segments.includes('login') || segments.includes('signup');
 
-    if (!user && !inAuthGroup) {
-      router.replace('/login');
-    } else if (user && inAuthGroup) {
-      router.replace('/(tabs)');
+    if (user) {
+      // User is logged IN.
+      // 1. Set up socket listeners.
+      const socket = socketService.getSocket();
+      if (socket) {
+        socket.on('connect', () => {
+          console.log('RootLayout: Socket connected/reconnected. Initializing stores...');
+          useMessageStore.getState().initialize();
+        });
+      }
+      
+      // 2. If user is on a login/signup page, redirect them to the main app.
+      if (inAuthScreens) {
+        router.replace('/(tabs)');
+      }
+    } else {
+      // User is logged OUT.
+      // If they are on any screen that IS NOT login/signup, redirect them.
+      if (!inAuthScreens) {
+        router.replace('/login');
+      }
     }
   }, [user, segments, isLoading, router]);
   

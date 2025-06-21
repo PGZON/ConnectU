@@ -10,7 +10,7 @@ interface MessageState {
   error: string | null;
   initialize: () => void; // To set up listeners
   fetchMessages: (userId: string) => Promise<void>;
-  sendRealtimeMessage: (receiverId: string, content: string) => void;
+  sendRealtimeMessage: (receiver: User, content: string) => void;
   markAsRead: (userId: string) => Promise<void>;
   getUnreadCount: (userId: string) => number;
   getTotalUnreadCount: () => number;
@@ -38,27 +38,33 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       return;
     }
 
-    console.log('MessageStore: Initializing listeners...');
+    console.log('[Store] > initialize: Attaching listeners.');
 
-    socket.off('receiveMessage'); // Remove previous listener
+    socket.off('receiveMessage');
     socket.on('receiveMessage', (message: Message) => {
-      console.log('MessageStore: Received message via socket', message);
+      console.log('[Store] > receiveMessage: ✅ Received message from socket:', JSON.stringify(message, null, 2));
       const currentUser = useAuthStore.getState().user;
-      if (!currentUser) return;
-
-      const otherUserId = message.sender._id === currentUser._id ? message.receiver._id : message.sender._id;
+      if (!currentUser || message.sender._id === currentUser._id) return;
       
       const transformedMessage = transformMessage(message);
+      const otherUserId = message.sender._id;
 
-      set((state) => {
-        const conversation = state.messages[otherUserId] || [];
+      set(state => {
+        console.log(`[Store] > receiveMessage: Updating state for conversation with ${otherUserId}.`);
+        const oldMessages = state.messages[otherUserId] || [];
+        const newMessages = [...oldMessages, transformedMessage];
+        console.log(`[Store] > receiveMessage: New message count for conversation: ${newMessages.length}`);
         return {
-          messages: {
-            ...state.messages,
-            [otherUserId]: [...conversation, transformedMessage],
-          },
+          messages: { ...state.messages, [otherUserId]: newMessages }
         };
       });
+    });
+
+    // NEW: Add a specific listener for errors when sending a message
+    socket.off('sendMessageError');
+    socket.on('sendMessageError', (error) => {
+      console.error('[Store] > sendMessageError: ❌ Received send error from server:', error);
+      // Here you could add logic to show an error to the user, e.g., Toast.show(...)
     });
   },
 
@@ -84,20 +90,46 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     }
   },
 
-  sendRealtimeMessage: (receiverId: string, content: string) => {
+  sendRealtimeMessage: (receiver: User, content: string) => {
     const socket = socketService.getSocket();
-    if (!socket) {
-      console.error('MessageStore: Cannot send message, socket is not connected.');
+    const currentUser = useAuthStore.getState().user;
+
+    if (!socket || !currentUser || !receiver) {
+      console.error('MessageStore: Cannot send message, socket, user, or receiver not available.');
       return;
     }
     
-    const payload = {
-      receiverId,
-      content,
+    const optimisticMessage: Message = {
+      _id: new Date().toISOString(),
+      sender: currentUser,
+      receiver: receiver,
+      content: content,
+      createdAt: new Date().toISOString(),
+      isRead: false,
     };
     
-    console.log('MessageStore: Sending message via socket', payload);
-    socket.emit('sendMessage', payload);
+    console.log('[Store] > sendRealtimeMessage: ➡️ Sending message optimistically.');
+    
+    set(state => {
+      const otherUserId = receiver._id;
+      console.log(`[Store] > sendRealtimeMessage: Updating state for conversation with ${otherUserId}.`);
+      const oldMessages = state.messages[otherUserId] || [];
+      const newMessages = [...oldMessages, transformMessage(optimisticMessage)];
+      console.log(`[Store] > sendRealtimeMessage: New message count for conversation: ${newMessages.length}`);
+      return {
+        messages: { ...state.messages, [otherUserId]: newMessages }
+      };
+    });
+    
+    const payload = { receiverId: receiver._id, content };
+    
+    console.log('[Store] > sendRealtimeMessage: ➡️  Attempting to emit event to server...');
+    try {
+      socket.emit('sendMessage', payload);
+      console.log('[Store] > sendRealtimeMessage: ✅  Event emitted successfully.');
+    } catch (e) {
+      console.error('[Store] > sendRealtimeMessage: ❌  FAILED to emit event.', e);
+    }
   },
   
   markAsRead: async (userId: string) => {
@@ -125,9 +157,11 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   },
 }));
 
-// Initialize listeners when the app loads and user is authenticated
+// This is now handled by the RootLayout and can be safely removed.
+/*
 useAuthStore.subscribe((state, prevState) => {
   if (state.user && !prevState.user) {
     useMessageStore.getState().initialize();
   }
 });
+*/

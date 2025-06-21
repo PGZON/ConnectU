@@ -19,7 +19,8 @@ const messageSchema = new mongoose.Schema({
   content: {
     type: String,
     required: [true, 'Message content is required'],
-    maxlength: [2000, 'Message cannot exceed 2000 characters']
+    maxlength: [2000, 'Message cannot exceed 2000 characters'],
+    trim: true
   },
   
   // Message type
@@ -208,6 +209,18 @@ messageSchema.pre('save', function(next) {
   next();
 });
 
+// Populate sender and receiver details automatically
+messageSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: 'sender',
+    select: 'name profileImage role',
+  }).populate({
+    path: 'receiver',
+    select: 'name profileImage role',
+  });
+  next();
+});
+
 // Method to mark as read
 messageSchema.methods.markAsRead = function() {
   this.status = 'read';
@@ -391,4 +404,6 @@ messageSchema.statics.searchMessages = function(userId, query, limit = 20) {
     .populate('receiver', 'name profileImage role');
 };
 
-module.exports = mongoose.model('Message', messageSchema); 
+const Message = mongoose.model('Message', messageSchema);
+
+module.exports = Message; 

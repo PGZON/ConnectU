@@ -4,6 +4,9 @@ const { successResponse, notFoundResponse, badRequestResponse, forbiddenResponse
 
 // This function will be called by both the HTTP endpoint and the socket handler
 const createAndSendMessage = async (senderId, receiverId, content, type = 'text', attachments = []) => {
+  console.log('[Controller] > createAndSendMessage: Starting.');
+  console.log(`[Controller] > createAndSendMessage: Sender: ${senderId}, Receiver: ${receiverId}`);
+
   // Check if users are connected
   const connection = await Connection.areConnected(senderId, receiverId);
   if (!connection) {
@@ -20,9 +23,19 @@ const createAndSendMessage = async (senderId, receiverId, content, type = 'text'
     status: 'sent'
   });
 
+  if (!message) {
+    throw new Error('Message creation failed in database.');
+  }
+  console.log('[Controller] > createAndSendMessage: ✅  Message saved to DB:', JSON.stringify(message, null, 2));
+  
   // Populate to get full user objects for the socket emission
   await message.populate('sender', 'name email role profileImageUrl');
   await message.populate('receiver', 'name email role profileImageUrl');
+
+  if (!message) {
+    throw new Error('Could not re-fetch populated message.');
+  }
+  console.log('[Controller] > createAndSendMessage: ✅  Returning populated message:', JSON.stringify(message, null, 2));
 
   return message;
 };

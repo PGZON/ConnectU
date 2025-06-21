@@ -31,16 +31,21 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('SocketService: Connected with ID:', this.socket?.id);
+      console.log('[SocketService] ✅  Connected with ID:', this.socket?.id);
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('SocketService: Disconnected. Reason:', reason);
+      console.log('[SocketService] 🔌  Disconnected. Reason:', reason);
       this.socket = null;
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('SocketService: Connection Error:', error.message);
+      console.error('[SocketService] ❌  Connection Error:', error.message);
+    });
+
+    // Add a listener for ALL incoming events for debugging
+    this.socket.onAny((eventName, ...args) => {
+      console.log(`[SocketService] ⬇️  Received event: '${eventName}' with data:`, JSON.stringify(args, null, 2));
     });
   }
 

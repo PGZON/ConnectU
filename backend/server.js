@@ -136,32 +136,39 @@ io.use((socket, next) => {
 
 // Socket.io event handlers
 io.on('connection', (socket) => {
-  console.log('Socket connected:', socket.id, 'for user:', socket.user.id);
+  console.log(`[Socket.io] ✅  User connected: ${socket.user.id} with socket ID: ${socket.id}`);
   socketUserMap.set(socket.user.id, socket.id);
 
+  // This event is no longer needed for direct messaging but can be kept for other features.
   socket.on('joinRoom', (roomId) => {
     socket.join(roomId);
     console.log(`Socket ${socket.id} (user ${socket.user.id}) joined room ${roomId}`);
   });
 
   socket.on('sendMessage', async (data) => {
-    // data: { receiverId, content }
     try {
       const { receiverId, content } = data;
       const senderId = socket.user.id;
       
-      // The conversation room is a consistent ID between two users
-      const roomId = [senderId, receiverId].sort().join('-');
-
+      console.log(`[Socket.io] ➡️  Received 'sendMessage' from ${senderId} to ${receiverId}`);
+      console.log(`[Socket.io] 💾  Attempting to save message to database...`);
+      
       const savedMessage = await createAndSendMessage(senderId, receiverId, content);
       
-      // Emit the saved message to the room
-      io.to(roomId).emit('receiveMessage', savedMessage);
+      console.log(`[Socket.io] ✅  Message saved to DB. ID: ${savedMessage._id}`);
+
+      const recipientSocketId = socketUserMap.get(receiverId);
+
+      if (recipientSocketId) {
+        console.log(`[Socket.io] 📡  Recipient ${receiverId} is ONLINE. Emitting 'receiveMessage' to socket ${recipientSocketId}.`);
+        io.to(recipientSocketId).emit('receiveMessage', savedMessage);
+      } else {
+        console.log(`[Socket.io] 📴  Recipient ${receiverId} is OFFLINE.`);
+      }
 
     } catch (error) {
-      console.error('Socket sendMessage error:', error.message);
-      // Optionally, emit an error event back to the sender
-      socket.emit('sendMessageError', { message: error.message });
+      console.error('[Socket.io] ❌  Error in sendMessage:', error);
+      socket.emit('sendMessageError', { message: 'Failed to send message.' });
     }
   });
 
@@ -182,7 +189,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('Socket disconnected:', socket.id, 'for user:', socket.user.id);
+    console.log(`[Socket.io] 🔌  User disconnected: ${socket.user.id} with socket ID: ${socket.id}`);
     socketUserMap.delete(socket.user.id);
   });
 });
