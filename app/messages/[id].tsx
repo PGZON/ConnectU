@@ -35,17 +35,20 @@ export default function ChatScreen() {
     }
   }, [id, connectedUsers]);
 
+  useEffect(() => {
+    if (userMessages.length > 0) {
+      const timer = setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [userMessages]);
+
   const handleSend = () => {
     if (messageText.trim() === '' || !chatUser) return;
     
     sendRealtimeMessage(chatUser, messageText.trim());
     setMessageText('');
-    
-    setTimeout(() => {
-      if (flatListRef.current) {
-        flatListRef.current.scrollToEnd({ animated: true });
-      }
-    }, 100);
   };
 
   return (
@@ -66,7 +69,7 @@ export default function ChatScreen() {
       
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlatList
@@ -80,6 +83,7 @@ export default function ChatScreen() {
             />
           )}
           contentContainerStyle={styles.messagesList}
+          keyboardDismissMode='on-drag'
           onLayout={() => {
             if (flatListRef.current && userMessages.length > 0) {
               flatListRef.current.scrollToEnd({ animated: false });
