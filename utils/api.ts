@@ -1,12 +1,32 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 // API Configuration
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || (__DEV__ ? 'http://192.168.175.239:5000' : 'https://your-production-api.com');
+const getApiBaseUrl = () => {
+  // Use environment variable if available.
+  // This is the recommended approach for configuring the API URL.
+  if (process.env.EXPO_PUBLIC_API_BASE_URL) {
+    return process.env.EXPO_PUBLIC_API_BASE_URL;
+  }
+
+  // Fallback for production
+  if (!__DEV__) {
+    return 'https://your-production-api.com';
+  }
+
+  // Fallback for development.
+  // This will work for web. For mobile development, you MUST create a .env file
+  // with `EXPO_PUBLIC_API_BASE_URL=http://<YOUR_LOCAL_IP>:5000`
+  return 'http://localhost:5000';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 // Debug logging
+console.log('Running on platform:', Platform.OS);
 console.log('API_BASE_URL:', API_BASE_URL);
-console.log('EXPO_PUBLIC_API_BASE_URL:', process.env.EXPO_PUBLIC_API_BASE_URL);
-console.log('__DEV__:', __DEV__);
+console.log('EXPO_PUBLIC_API_BASE_URL from env:', process.env.EXPO_PUBLIC_API_BASE_URL);
+console.log('Is in dev mode:', __DEV__);
 
 // API Response Types
 interface ApiResponse<T = any> {
@@ -28,6 +48,11 @@ interface PaginatedResponse<T> extends ApiResponse<T[]> {
     nextPage: number | null;
     prevPage: number | null;
   };
+}
+
+interface AuthRefreshResponse {
+  accessToken: string;
+  refreshToken: string;
 }
 
 // Token Management
@@ -157,7 +182,7 @@ class ApiClient {
         url,
         method: config.method,
         headers: config.headers,
-        bodyLength: config.body ? config.body.length : 0
+        bodyLength: typeof config.body === 'string' ? config.body.length : 0
       });
 
       const response = await fetch(url, config);
@@ -169,7 +194,20 @@ class ApiClient {
         
         if (errorData.code === 'TOKEN_EXPIRED' && !this.isRefreshing) {
           return new Promise((resolve, reject) => {
-            this.failedQueue.push({ resolve, reject });
+            this.failedQueue.push({ 
+              resolve: (token: string) => {
+                // We need to re-make the original request with the new token
+                // and resolve the outer promise with its result.
+                const newOptions = { ...options };
+                if (newOptions.headers) {
+                  (newOptions.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+                } else {
+                  newOptions.headers = { 'Authorization': `Bearer ${token}` };
+                }
+                resolve(this.request(endpoint, newOptions));
+              }, 
+              reject 
+            });
 
             if (!this.isRefreshing) {
               this.isRefreshing = true;
@@ -212,6 +250,10 @@ class ApiClient {
       }
 
       const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message);
+      }
+
       return data;
     } catch (error) {
       console.error('API request failed:', error);

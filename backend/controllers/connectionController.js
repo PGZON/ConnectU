@@ -297,7 +297,7 @@ const declineConnectionRequest = async (req, res) => {
   }
 };
 
-exports.disconnectConnection = async (req, res) => {
+const disconnectConnection = async (req, res) => {
   try {
     const { connectionId } = req.params;
     const userId = req.user._id;
@@ -324,7 +324,7 @@ exports.disconnectConnection = async (req, res) => {
   }
 };
 
-exports.getConnectionsByUser = async (req, res) => {
+const getConnectionsByUser = async (req, res) => {
   // ...
 };
 

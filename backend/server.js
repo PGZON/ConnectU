@@ -39,21 +39,36 @@ app.use(helmet());
 app.use(compression());
 
 // CORS configuration
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-frontend-domain.com'] 
-    : [
-        'http://localhost:3000', 
-        'http://localhost:19006',
-        'http://192.168.175.239:19006',
-        'http://192.168.175.239:3000',
-        'exp://192.168.175.239:19000',
-        'exp://localhost:19000'
-      ],
+const developmentOrigins = [
+  /localhost/, 
+  /192\.168\.175\.239/ // Using regex to match any port on this IP
+];
+
+const corsOptions = {
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  origin: (origin, callback) => {
+    if (process.env.NODE_ENV !== 'production') {
+      // In dev, allow from common dev origins
+      if (!origin || developmentOrigins.some(pattern => pattern.test(origin))) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    } else {
+      // In prod, only allow from the production domain
+      const productionOrigin = 'https://your-production-domain.com';
+      if (origin === productionOrigin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    }
+  },
+};
+
+app.use(cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -99,21 +114,7 @@ app.use(errorHandler);
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: {
-    origin: process.env.NODE_ENV === 'production'
-      ? ['https://your-frontend-domain.com']
-      : [
-          'http://localhost:3000',
-          'http://localhost:19006',
-          'http://192.168.175.239:19006',
-          'http://192.168.175.239:3000',
-          'exp://192.168.175.239:19000',
-          'exp://localhost:19000'
-        ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-  }
+  cors: corsOptions
 });
 
 // Add a map to track socket IDs to user IDs
