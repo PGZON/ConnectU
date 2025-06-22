@@ -7,6 +7,8 @@ import { useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useAuthStore } from '@/store/authStore';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 
 export default function FeedScreen() {
   const { posts, isLoading, fetchPosts, likePost } = useFeedStore();
@@ -53,16 +55,18 @@ export default function FeedScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={[Colors.background, '#f8fafc']} style={styles.container}>
       <FlatList
         data={posts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <PostCard 
-            post={item} 
-            onLike={handleLike}
-            onComment={handleComment}
-          />
+          <View style={styles.postCardWrapper}>
+            <PostCard 
+              post={item} 
+              onLike={handleLike}
+              onComment={handleComment}
+            />
+          </View>
         )}
         contentContainerStyle={styles.listContent}
         refreshControl={
@@ -86,9 +90,9 @@ export default function FeedScreen() {
         onPress={handleCreatePost}
         activeOpacity={0.8}
       >
-        <Plus size={24} color="#FFFFFF" />
+        <Plus size={28} color="#FFFFFF" />
       </TouchableOpacity>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -97,8 +101,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  postCardWrapper: {
+    marginBottom: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
+    elevation: 3,
+    borderRadius: 16,
+  },
   listContent: {
-    padding: 12,
+    padding: 18,
+    paddingBottom: 90,
   },
   loadingContainer: {
     flex: 1,
@@ -125,11 +139,11 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    bottom: 32,
+    right: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -137,6 +151,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5,
+    elevation: 6,
+    borderWidth: 3,
+    borderColor: '#fff',
   },
 });

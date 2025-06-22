@@ -82,78 +82,83 @@ export default function LoginScreen() {
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.logoContainer}>
+            <View style={styles.logoCircle}>
+              <Image source={require('@/assets/images/icon.png')} style={styles.logoImage} />
+            </View>
             <Text style={styles.logoText}>ConnectU</Text>
           </View>
           
-          <Text style={styles.welcomeText}>Welcome Back!</Text>
-          <Text style={styles.subtitleText}>Sign in to continue</Text>
-          
-          {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-          
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Enter your email"
-              placeholderTextColor={Colors.textSecondary}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              textContentType="emailAddress"
-            />
-          </View>
-          
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={{ position: 'relative' }}>
+          <View style={styles.card}>
+            <Text style={styles.welcomeText}>Welcome Back!</Text>
+            <Text style={styles.subtitleText}>Sign in to continue</Text>
+            
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+            
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Email</Text>
               <TextInput
                 style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Enter your password"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Enter your email"
                 placeholderTextColor={Colors.textSecondary}
-                secureTextEntry={!showPassword}
-                autoComplete="password"
-                textContentType="password"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                textContentType="emailAddress"
               />
-              <TouchableOpacity
-                style={{ position: 'absolute', right: 12, top: 12 }}
-                onPress={() => setShowPassword((prev) => !prev)}
-                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? (
-                  <EyeOff size={20} color={Colors.textSecondary} />
-                ) : (
-                  <Eye size={20} color={Colors.textSecondary} />
-                )}
+            </View>
+            
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Password</Text>
+              <View style={{ position: 'relative' }}>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Enter your password"
+                  placeholderTextColor={Colors.textSecondary}
+                  secureTextEntry={!showPassword}
+                  autoComplete="password"
+                  textContentType="password"
+                />
+                <TouchableOpacity
+                  style={{ position: 'absolute', right: 12, top: 12 }}
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? (
+                    <EyeOff size={20} color={Colors.textSecondary} />
+                  ) : (
+                    <Eye size={20} color={Colors.textSecondary} />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            <TouchableOpacity style={styles.forgotPassword} onPress={() => setShowForgot(true)}>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
+            
+            <Button
+              title="Login"
+              onPress={handleLogin}
+              variant="primary"
+              loading={isLoading}
+              fullWidth
+              style={styles.loginButton}
+            />
+            
+            <View style={styles.signupContainer}>
+              <Text style={styles.signupText}>Don't have an account? </Text>
+              <TouchableOpacity onPress={handleSignup}>
+                <Text style={styles.signupLink}>Sign Up</Text>
               </TouchableOpacity>
             </View>
-          </View>
-          
-          <TouchableOpacity style={styles.forgotPassword} onPress={() => setShowForgot(true)}>
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
-          
-          <Button
-            title="Login"
-            onPress={handleLogin}
-            variant="primary"
-            loading={isLoading}
-            fullWidth
-            style={styles.loginButton}
-          />
-          
-          <View style={styles.signupContainer}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={handleSignup}>
-              <Text style={styles.signupLink}>Sign Up</Text>
-            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -191,72 +196,113 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 24,
   },
-  logoText: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: Colors.primary,
-  },
-  welcomeText: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: Colors.text,
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
     marginBottom: 8,
   },
+  logoImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  logoText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    letterSpacing: 1,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 12,
+    elevation: 4,
+    marginBottom: 24,
+  },
+  welcomeText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
   subtitleText: {
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.textSecondary,
-    marginBottom: 32,
+    marginBottom: 20,
+    textAlign: 'center',
   },
   errorContainer: {
     backgroundColor: '#FFEBEE',
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
+    alignItems: 'center',
   },
   errorText: {
     color: Colors.error,
     fontSize: 14,
+    fontWeight: '600',
   },
   formGroup: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   label: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   input: {
     backgroundColor: Colors.card,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 10,
+    padding: 14,
     fontSize: 16,
     color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: 24,
+    marginBottom: 18,
   },
   forgotPasswordText: {
     color: Colors.primary,
     fontSize: 14,
+    fontWeight: '500',
   },
   loginButton: {
-    marginBottom: 24,
+    marginBottom: 18,
+    borderRadius: 10,
+    elevation: 2,
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
+    marginTop: 8,
   },
   signupText: {
     color: Colors.textSecondary,
-    fontSize: 14,
+    fontSize: 15,
   },
   signupLink: {
     color: Colors.primary,
-    fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 15,
   },
 });

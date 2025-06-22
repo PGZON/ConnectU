@@ -64,7 +64,12 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Feed',
+          headerTitle: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Image source={require('@/assets/images/icon.png')} style={{ width: 28, height: 28, borderRadius: 14, marginRight: 8 }} />
+              <Text style={{ fontSize: 22, fontWeight: 'bold', color: Colors.primary, letterSpacing: 1 }}>ConnectU</Text>
+            </View>
+          ),
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />

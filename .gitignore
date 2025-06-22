@@ -9,8 +9,8 @@ backend/node_modules/
 dist/
 web-build/
 expo-env.d.ts
-upload/*
-!upload/.gitkeep
+backend/upload/*
+!backend/upload/.gitkeep
 # Native
 *.orig.*
 *.jks

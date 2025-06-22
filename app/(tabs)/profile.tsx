@@ -14,6 +14,7 @@ import PostCard from '@/components/PostCard';
 import { transformApiPost } from '@/store/feedStore';
 
 export default function ProfileScreen() {
+  // All hooks at the top!
   const { user, isLoading: authLoading, checkAuthState, logout } = useAuthStore();
   const { connections, fetchConnections, isLoading: connLoading } = useConnectionStore();
   const { userQueries, fetchQueriesForUser, isLoading: queriesLoading } = useQueryStore();
@@ -25,7 +26,7 @@ export default function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  // This is the critical fix. Do not render anything until the user is loaded.
+  // Only after all hooks:
   if (authLoading || !user) {
     return (
       <View style={styles.loadingContainer}>

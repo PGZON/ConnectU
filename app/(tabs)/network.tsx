@@ -5,6 +5,9 @@ import { useAuthStore } from '@/store/authStore';
 import UserCard from '@/components/UserCard';
 import Colors from '@/constants/colors';
 import { User, Connection } from '@/types';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Search } from 'lucide-react-native';
+import { TextInput } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +41,7 @@ export default function NetworkScreen() {
   } = useConnectionStore();
   const { user: currentUser } = useAuthStore();
   const [activeTab, setActiveTab] = useState('Discover');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     if (currentUser) {
@@ -52,6 +56,11 @@ export default function NetworkScreen() {
       fetchConnections();
     }
   }, [currentUser, fetchAllUsers, fetchConnections]);
+
+  const filteredDiscoverUsers = useMemo(() => {
+    if (!search.trim()) return discoverUsers;
+    return discoverUsers.filter(u => u.name.toLowerCase().includes(search.trim().toLowerCase()));
+  }, [discoverUsers, search]);
 
   if (!currentUser) {
     return (
@@ -96,11 +105,12 @@ export default function NetworkScreen() {
       case 'Discover':
         return (
           <FlatList
-            data={discoverUsers}
+            data={filteredDiscoverUsers}
             renderItem={renderUserCard}
             keyExtractor={(item) => item._id}
             ListEmptyComponent={() => renderEmptyList('No new users to discover.')}
             refreshControl={refreshControl}
+            contentContainerStyle={styles.listContent}
           />
         );
       case 'Requests':
@@ -143,7 +153,20 @@ export default function NetworkScreen() {
   };
   
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={[Colors.background, '#f8fafc']} style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Network</Text>
+      </View>
+      <View style={styles.searchBar}>
+        <Search size={20} color={Colors.textSecondary} style={{ marginRight: 8 }} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search..."
+          placeholderTextColor={Colors.textSecondary}
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
       <View style={styles.tabContainer}>
         <TouchableOpacity onPress={() => setActiveTab('Discover')} style={[styles.tab, activeTab === 'Discover' && styles.activeTab]}>
           <Text style={[styles.tabText, activeTab === 'Discover' && styles.activeTabText]}>Discover</Text>
@@ -162,18 +185,53 @@ export default function NetworkScreen() {
       ) : (
         renderContent()
       )}
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  header: {
+    paddingTop: 24,
+    paddingBottom: 10,
+    paddingHorizontal: 18,
+    backgroundColor: 'transparent',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    letterSpacing: 1,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    marginHorizontal: 18,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.text,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
   tabContainer: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: Colors.card, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.lightGray },
-  tab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, },
-  activeTab: { backgroundColor: Colors.primary },
-  tabText: { color: Colors.textSecondary, fontWeight: '600' },
-  activeTabText: { color: '#FFFFFF' },
+  tab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, marginHorizontal: 4 },
+  activeTab: { backgroundColor: Colors.primary, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.10, shadowRadius: 6, elevation: 2 },
+  tabText: { color: Colors.textSecondary, fontWeight: '600', fontSize: 16 },
+  activeTabText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
+  listContent: { padding: 16, paddingBottom: 90 },
   emptyContainer: { alignItems: 'center', marginTop: 50, paddingHorizontal: 20 },
   emptyText: { fontSize: 16, color: Colors.textSecondary, textAlign: 'center' },
   sectionTitle: { fontSize: 18, fontWeight: '600', color: Colors.text, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, backgroundColor: Colors.background },

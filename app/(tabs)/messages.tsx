@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
-import { StyleSheet, View, FlatList, ActivityIndicator, Text, TouchableOpacity, RefreshControl } from 'react-native';
+import { StyleSheet, View, FlatList, ActivityIndicator, Text, TouchableOpacity, RefreshControl, TextInput } from 'react-native';
 import useConnectionStore from '@/store/connectionStore';
 import { useMessageStore } from '@/store/messageStore';
 import { useAuthStore } from '@/store/authStore';
@@ -8,12 +8,15 @@ import Avatar from '@/components/Avatar';
 import { useRouter } from 'expo-router';
 import { formatTimeAgo } from '@/utils/dateUtils';
 import { User } from '@/types';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Search } from 'lucide-react-native';
 
 export default function MessagesScreen() {
   const { establishedConnections, isLoading: connectionsLoading, fetchConnections } = useConnectionStore();
   const { user: currentUser } = useAuthStore();
   const { messages, fetchMessages, getUnreadCount } = useMessageStore();
   const router = useRouter();
+  const [search, setSearch] = React.useState('');
 
   useEffect(() => {
     if (currentUser) {
@@ -40,6 +43,11 @@ export default function MessagesScreen() {
     });
   }, [connectedUsers, fetchMessages]);
 
+  const filteredUsers = useMemo(() => {
+    if (!search.trim()) return connectedUsers;
+    return connectedUsers.filter(u => u.name.toLowerCase().includes(search.trim().toLowerCase()));
+  }, [connectedUsers, search]);
+
   if (connectionsLoading || !currentUser) {
     return (
       <View style={styles.loadingContainer}>
@@ -58,9 +66,22 @@ export default function MessagesScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={[Colors.background, '#f8fafc']} style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Messages</Text>
+      </View>
+      <View style={styles.searchBar}>
+        <Search size={20} color={Colors.textSecondary} style={{ marginRight: 8 }} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search..."
+          placeholderTextColor={Colors.textSecondary}
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
       <FlatList
-        data={connectedUsers}
+        data={filteredUsers}
         keyExtractor={(item) => item._id}
         renderItem={({ item }) => {
           if (!item?._id) return null; // Defensive check
@@ -71,10 +92,10 @@ export default function MessagesScreen() {
             <TouchableOpacity 
               style={styles.userItem}
               onPress={() => handleUserPress(item)}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
               <View style={styles.avatarContainer}>
-                <Avatar uri={item.profileImageUrl} size={50} />
+                <Avatar uri={item.profileImageUrl} size={60} />
                 {unreadCount > 0 && (
                   <View style={styles.unreadBadge}>
                     <Text style={styles.unreadText}>
@@ -122,7 +143,10 @@ export default function MessagesScreen() {
           </View>
         }
       />
-    </View>
+      <TouchableOpacity style={styles.fab} onPress={() => {}} activeOpacity={0.8}>
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
+    </LinearGradient>
   );
 }
 
@@ -130,6 +154,40 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  header: {
+    paddingTop: 24,
+    paddingBottom: 10,
+    paddingHorizontal: 18,
+    backgroundColor: 'transparent',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    letterSpacing: 1,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    marginHorizontal: 18,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.text,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
   },
   listContent: {
     padding: 12,
@@ -144,9 +202,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
+    elevation: 2,
   },
   avatarContainer: {
     position: 'relative',
@@ -170,29 +233,29 @@ const styles = StyleSheet.create({
   },
   messageInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 16,
   },
   userName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: Colors.text,
     marginBottom: 4,
   },
   lastMessage: {
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.textSecondary,
   },
   unreadMessage: {
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.text,
   },
   noMessages: {
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.textSecondary,
     fontStyle: 'italic',
   },
   timestamp: {
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textSecondary,
     marginLeft: 8,
   },
@@ -212,5 +275,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 32,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 6,
+  },
+  fabText: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginTop: -2,
   },
 });
