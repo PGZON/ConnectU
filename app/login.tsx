@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
@@ -7,6 +7,7 @@ import Button from '@/components/Button';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Eye, EyeOff } from 'lucide-react-native';
 import api from '@/utils/api';
+import AnimatedLogo from '@/components/AnimatedLogo';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -82,10 +83,7 @@ export default function LoginScreen() {
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Image source={require('@/assets/images/icon.png')} style={styles.logoImage} />
-            </View>
-            <Text style={styles.logoText}>ConnectU</Text>
+            <AnimatedLogo />
           </View>
           
           <View style={styles.card}>
@@ -196,42 +194,21 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 24,
-  },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    marginBottom: 8,
-  },
-  logoImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: Colors.primary,
-    letterSpacing: 1,
+    marginBottom: 32,
+    marginTop: 40,
   },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 24,
+    borderRadius: 16,
+    padding: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.10,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
     marginBottom: 24,
   },
   welcomeText: {

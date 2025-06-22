@@ -25,10 +25,15 @@ export default function MessageBubble({ message, isCurrentUser }: MessageBubbleP
         ]}>
           {message.message}
         </Text>
+        <View style={styles.timestampWrapper}>
+          <Text style={[
+            styles.timestamp,
+            isCurrentUser ? styles.currentUserTimestamp : styles.otherUserTimestamp
+          ]}>
+            {formatTime(new Date(message.createdAt))}
+          </Text>
+        </View>
       </View>
-      <Text style={styles.timestamp}>
-        {formatTime(new Date(message.timestamp))}
-      </Text>
     </View>
   );
 }
@@ -37,7 +42,6 @@ const styles = StyleSheet.create({
   container: {
     maxWidth: '80%',
     marginVertical: 4,
-    alignItems: 'flex-end',
   },
   currentUserContainer: {
     alignSelf: 'flex-end',
@@ -46,19 +50,27 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   bubble: {
-    borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 10,
+    justifyContent: 'center',
   },
   currentUserBubble: {
     backgroundColor: Colors.primary,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 4,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
   },
   otherUserBubble: {
-    backgroundColor: Colors.border,
+    backgroundColor: '#E5E5EA',
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 18,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
   },
   messageText: {
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 22,
   },
   currentUserText: {
     color: 'white',
@@ -66,10 +78,17 @@ const styles = StyleSheet.create({
   otherUserText: {
     color: Colors.text,
   },
+  timestampWrapper: {
+    alignItems: 'flex-end',
+    marginTop: 4,
+  },
   timestamp: {
     fontSize: 11,
+  },
+  currentUserTimestamp: {
+    color: '#E0E0E0',
+  },
+  otherUserTimestamp: {
     color: Colors.textSecondary,
-    marginTop: 2,
-    marginHorizontal: 4,
   },
 });

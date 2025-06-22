@@ -248,14 +248,11 @@ const styles = StyleSheet.create({
   },
   commentUser: {
     fontWeight: '600',
-    fontSize: 14,
-    marginRight: 5,
     color: Colors.text,
+    marginRight: 5,
   },
   commentText: {
-    fontSize: 14,
-    color: Colors.text,
-    flex: 1,
+    color: Colors.textSecondary,
   },
   timestamp: {
     paddingHorizontal: 12,

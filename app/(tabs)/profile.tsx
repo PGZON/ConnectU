@@ -14,28 +14,16 @@ import PostCard from '@/components/PostCard';
 import { transformApiPost } from '@/store/feedStore';
 
 export default function ProfileScreen() {
-  // All hooks at the top!
   const { user, isLoading: authLoading, checkAuthState, logout } = useAuthStore();
-  const { connections, fetchConnections, isLoading: connLoading } = useConnectionStore();
-  const { userQueries, fetchQueriesForUser, isLoading: queriesLoading } = useQueryStore();
+  const { connections, fetchConnections } = useConnectionStore();
+  const { userQueries, fetchQueriesForUser } = useQueryStore();
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [verificationLoading, setVerificationLoading] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  // Only after all hooks:
-  if (authLoading || !user) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
-  }
-
-  // Fetch user posts
   const fetchUserPosts = useCallback(async () => {
     if (!user) return;
     setPostsLoading(true);
@@ -53,33 +41,34 @@ export default function ProfileScreen() {
     }
   }, [user]);
 
-  // Initial fetch
   useEffect(() => {
-    if (!user) {
+    if (user) {
+      fetchConnections();
+      fetchQueriesForUser(user.id);
+      fetchUserPosts();
+    } else {
       checkAuthState();
-      return;
     }
-    fetchConnections();
-    fetchQueriesForUser(user.id);
-    fetchUserPosts();
   }, [user, checkAuthState, fetchConnections, fetchQueriesForUser, fetchUserPosts]);
 
-  // Pull to refresh
   const onRefresh = useCallback(async () => {
+    if (!user) return;
     setRefreshing(true);
-    await checkAuthState();
-    await fetchConnections();
-    await fetchQueriesForUser(user?.id);
-    await fetchUserPosts();
+    await Promise.all([
+      checkAuthState(),
+      fetchConnections(),
+      fetchQueriesForUser(user.id),
+      fetchUserPosts()
+    ]);
     setRefreshing(false);
-  }, [checkAuthState, fetchConnections, fetchQueriesForUser, fetchUserPosts, user?.id]);
+  }, [user, checkAuthState, fetchConnections, fetchQueriesForUser, fetchUserPosts]);
 
   const handleEditProfile = () => {
     router.push('/edit-profile');
   };
-
+  
   const handlePickImage = async () => {
-    if (Platform.OS !== 'web') {
+     if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to make this work!');
@@ -93,7 +82,6 @@ export default function ProfileScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      // TODO: Implement backend upload and update
       Alert.alert('Not implemented', 'Profile image update is not implemented yet.');
     }
   };
@@ -113,7 +101,6 @@ export default function ProfileScreen() {
     setVerificationLoading(true);
     setVerificationMessage(null);
     try {
-      // TODO: Implement verification API call
       setVerificationMessage('Verification not implemented.');
     } catch (error: any) {
       setVerificationMessage('Verification failed.');
@@ -122,20 +109,18 @@ export default function ProfileScreen() {
     }
   };
 
-  if (error) {
+  if (authLoading || !user) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={{ color: Colors.error }}>{error}</Text>
-        <Button title="Retry" onPress={onRefresh} />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
-  // Stats
   const connectionsCount = connections.length;
   const postsCount = posts.length;
-  const queriesCount = userQueries.filter(q => q.studentId === user.id).length;
-
+  const queriesCount = userQueries.length;
+  
   return (
     <ScrollView
       style={styles.container}
@@ -252,14 +237,14 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: Colors.background,
+  },
+  container: {
+    flex: 1,
     backgroundColor: Colors.background,
   },
   header: {

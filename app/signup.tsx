@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Button from '@/components/Button';
 import { UserRole } from '@/types';
+import AnimatedLogo from '@/components/AnimatedLogo';
 
 export default function SignupScreen() {
   const [formData, setFormData] = useState({
@@ -113,7 +114,7 @@ export default function SignupScreen() {
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>ConnectU</Text>
+            <AnimatedLogo />
           </View>
           
           <Text style={styles.welcomeText}>Create Account</Text>
@@ -303,18 +304,14 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     padding: 24,
+    justifyContent: 'center',
   },
   logoContainer: {
     alignItems: 'center',
-    marginVertical: 24,
-  },
-  logoText: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: Colors.primary,
+    marginBottom: 24,
   },
   welcomeText: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: Colors.text,
     marginBottom: 8,

@@ -7,8 +7,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { socketService } from '@/utils/socket';
 import { useMessageStore } from '@/store/messageStore';
+import Colors from '@/constants/colors';
 
-const InitialLayout = () => {
+export { ErrorBoundary } from 'expo-router';
+
+export default function RootLayout() {
   const { user, isLoading, checkAuthState } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
@@ -24,64 +27,56 @@ const InitialLayout = () => {
   }, []);
 
   useEffect(() => {
-    if (isLoading) return; // Wait until loading is complete
+    if (isLoading) return;
 
     const inAuthScreens = segments.includes('login') || segments.includes('signup');
 
     if (user) {
-      // User is logged IN.
-      // 1. Set up socket listeners.
+      // User is logged in, set up socket connection
       const socket = socketService.getSocket();
       if (socket) {
         socket.on('connect', () => {
-          console.log('RootLayout: Socket connected/reconnected. Initializing stores...');
+          console.log('RootLayout: Socket connected. Initializing stores...');
           useMessageStore.getState().initialize();
         });
       }
-      
-      // 2. If user is on a login/signup page, redirect them to the main app.
+
+      // If user is on an auth screen, redirect them away
       if (inAuthScreens) {
         router.replace('/(tabs)');
       }
     } else {
-      // User is logged OUT.
-      // If they are on any screen that IS NOT login/signup, redirect them.
+      // User is not logged in
+      // If user is in a protected area, redirect to login
       if (!inAuthScreens) {
         router.replace('/login');
       }
     }
   }, [user, segments, isLoading, router]);
-  
+
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="login" />
-      <Stack.Screen name="signup" />
-    </Stack>
-  );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
-
-export default function RootLayout() {
-  return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <InitialLayout />
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="signup" options={{ headerShown: false }} />
+          <Stack.Screen name="messages/[id]" options={{
+             headerBackTitleVisible: false,
+             headerTitleStyle: { color: Colors.text },
+             headerStyle: { backgroundColor: Colors.card },
+             headerTintColor: Colors.primary,
+          }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        </Stack>
         <Toast />
       </SafeAreaProvider>
     </GestureHandlerRootView>

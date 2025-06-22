@@ -7,6 +7,8 @@ import { useMessageStore } from '@/store/messageStore';
 import useConnectionStore from '@/store/connectionStore';
 import { useAuthStore } from '@/store/authStore';
 import { Platform, Text, View, ActivityIndicator, StyleSheet } from 'react-native';
+import AnimatedLogo from '@/components/AnimatedLogo';
+import { useFonts } from 'expo-font';
 
 const ProfileTabIcon = ({ color, size }: { color: string, size: number }) => {
   const { user } = useAuthStore();
@@ -27,6 +29,10 @@ export default function TabLayout() {
   const { fetchConnections, receivedRequests } = useConnectionStore();
   const { getTotalUnreadCount } = useMessageStore();
   
+  const [fontsLoaded] = useFonts({
+    'Pacifico-Regular': require('../../assets/fonts/Pacifico-Regular.ttf'),
+  });
+
   console.log('--- [app/(tabs)/_layout.tsx] TabLayout Render ---');
   console.log(`isLoading: ${isLoading}`);
   console.log(`User object: ${JSON.stringify(user, null, 2)}`);
@@ -38,7 +44,7 @@ export default function TabLayout() {
     }
   }, [user, fetchConnections]);
 
-  if (isLoading) {
+  if (isLoading || !fontsLoaded) {
     return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator /></View>;
   }
 
@@ -47,6 +53,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerShown: true,
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.inactive,
         tabBarStyle: {
@@ -64,12 +71,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          headerTitle: () => (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Image source={require('@/assets/images/icon.png')} style={{ width: 28, height: 28, borderRadius: 14, marginRight: 8 }} />
-              <Text style={{ fontSize: 22, fontWeight: 'bold', color: Colors.primary, letterSpacing: 1 }}>ConnectU</Text>
-            </View>
-          ),
+          headerTitle: () => <AnimatedLogo />,
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />
