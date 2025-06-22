@@ -41,7 +41,7 @@ router.get('/user/:userId', validatePagination, getUserPosts);
 router.get('/:id', getPost);
 
 // Protected routes
-router.post('/', protect, requireVerification, upload.single('media'), validatePost, createPost);
+router.post('/', protect, requireVerification, upload.array('media', 5), createPost);
 router.put('/:id', protect, requireVerification, requireOwnership(Post), validatePost, updatePost);
 router.delete('/:id', protect, requireVerification, requireOwnership(Post), deletePost);
 

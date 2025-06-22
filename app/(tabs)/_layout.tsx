@@ -1,11 +1,26 @@
 import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
+import { Image } from 'expo-image';
 import { MessageCircle, Home, Users, User, BookOpen } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useMessageStore } from '@/store/messageStore';
 import useConnectionStore from '@/store/connectionStore';
 import { useAuthStore } from '@/store/authStore';
-import { Platform, Text, View, ActivityIndicator } from 'react-native';
+import { Platform, Text, View, ActivityIndicator, StyleSheet } from 'react-native';
+
+const ProfileTabIcon = ({ color, size }: { color: string, size: number }) => {
+  const { user } = useAuthStore();
+
+  if (user?.profileImageUrl) {
+    return (
+      <Image
+        source={{ uri: user.profileImageUrl }}
+        style={[styles.profileIcon, { borderColor: color }]}
+      />
+    );
+  }
+  return <User size={size} color={color} />;
+};
 
 export default function TabLayout() {
   const { user, isLoading } = useAuthStore();
@@ -105,9 +120,18 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <ProfileTabIcon color={color} size={size} />,
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  profileIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+  },
+});

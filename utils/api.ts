@@ -411,54 +411,72 @@ class ApiClient {
   }
 
   async markConversationAsRead(userId: string): Promise<ApiResponse> {
-    return this.request(`/messages/conversation/${userId}/read`, {
-      method: 'PUT',
+    return this.request(`/messages/read/${userId}`, {
+      method: 'POST'
     });
   }
 
   // Add this to the ApiClient class
-  async createPostWithMedia(caption: string, fileUri: string, fileType: 'image' | 'video', onProgress?: (percent: number) => void): Promise<ApiResponse<any>> {
+  async createPostWithMedia(caption: string, fileUris: string[], fileType: 'image' | 'video', onProgress?: (percent: number) => void): Promise<ApiResponse<any>> {
     const formData = new FormData();
     formData.append('caption', caption);
-    if (fileUri) {
-      const filename = fileUri.split('/').pop() || `media.${fileType === 'video' ? 'mp4' : 'jpg'}`;
-      const type = fileType === 'video' ? 'video/mp4' : 'image/jpeg';
-      formData.append('media', {
-        uri: fileUri,
-        name: filename,
-        type,
-      } as any);
-    }
+
+    fileUris.forEach((uri, index) => {
+      const uriParts = uri.split('.');
+      const fileExtension = uriParts[uriParts.length - 1];
+      
+      // The type for FormData.append needs to be compatible with what React Native expects.
+      // It's a bit of a hack, but it works across platforms.
+      const file = {
+        uri: Platform.OS === 'android' ? uri : uri.replace('file://', ''),
+        name: `photo_${index}.${fileExtension}`,
+        type: `${fileType}/${fileExtension}`,
+      } as any;
+
+      formData.append('media', file);
+    });
+
     const token = await getAuthToken();
-    return new Promise<ApiResponse<any>>((resolve, reject) => {
+
+    // Use XMLHttpRequest for progress tracking because fetch API doesn't support it for uploads
+    return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${this.baseURL}/posts`);
-      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-      // Do NOT set Content-Type header manually for FormData with XHR
-      xhr.onload = () => {
-        try {
-          const json = JSON.parse(xhr.responseText);
-          // Ensure the response is always an ApiResponse
-          resolve({
-            success: json.success ?? true,
-            message: json.message ?? '',
-            data: json.data ?? json,
-            errors: json.errors ?? [],
-            timestamp: json.timestamp ?? new Date().toISOString(),
-          });
-        } catch (e) {
-          reject(e);
-        }
-      };
-      xhr.onerror = () => reject(new Error('Upload failed'));
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+
       if (xhr.upload && onProgress) {
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) {
-            const percent = Math.round((event.loaded / event.total) * 100);
-            onProgress(percent);
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            onProgress(percentComplete);
           }
         };
       }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const jsonResponse = JSON.parse(xhr.responseText);
+            resolve(jsonResponse);
+          } catch (e) {
+            reject(new Error('Failed to parse server response.'));
+          }
+        } else {
+          try {
+            const errorResponse = JSON.parse(xhr.responseText);
+            reject(errorResponse);
+          } catch(e) {
+            reject(new Error(`Server responded with status ${xhr.status}`));
+          }
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Network request failed.'));
+      };
+      
       xhr.send(formData);
     });
   }

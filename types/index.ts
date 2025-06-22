@@ -14,13 +14,17 @@ export interface User {
   position?: string;
 }
 
+export interface Media {
+  url: string;
+  type: 'image' | 'video';
+}
+
 export interface Post {
   id: string;
   userId: string;
   user?: User;
   caption: string;
-  mediaUrl?: string;
-  mediaType?: 'image' | 'video';
+  media?: Media[];
   likes: string[];
   comments: Comment[];
   createdAt: string;

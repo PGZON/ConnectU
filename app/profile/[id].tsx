@@ -4,38 +4,42 @@ import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import useConnectionStore from '@/store/connectionStore';
 import { useAuthStore } from '@/store/authStore';
+import { useFeedStore, transformApiPost } from '@/store/feedStore';
 import Colors from '@/constants/colors';
 import Button from '@/components/Button';
 import { MessageCircle, CheckCircle, XCircle, Camera } from 'lucide-react-native';
 import { api } from '@/utils/api';
 import PostCard from '@/components/PostCard';
+import { Post } from '@/types';
 
 export default function UserProfileScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const id = params.id;
+  const { user: authUser } = useAuthStore();
+  const router = useRouter();
+  
+  const profileId = useMemo(() => id || authUser?._id, [id, authUser]);
+
   const [user, setUser] = useState<any>(null);
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [postsLoading, setPostsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { getConnectionStatus, sendConnectionRequest } = useConnectionStore();
   const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'accepted'>('none');
-  const router = useRouter();
-  const [posts, setPosts] = useState<any[]>([]);
-  const [postsLoading, setPostsLoading] = useState(true);
-
-  const isOwnProfile = !id;
+  
+  const { likePost } = useFeedStore();
 
   useEffect(() => {
     let isMounted = true;
-    async function fetchUser() {
+    async function fetchProfileData() {
+      if (!profileId) return;
+      
       setLoading(true);
       setError(null);
+      
       try {
-        let res;
-        if (id) {
-          res = await api.getUserProfile(id);
-        } else {
-          res = await api.getMe();
-        }
+        const res = await api.getUserProfile(profileId);
         if (res.success && res.data) {
           if (isMounted) setUser(res.data);
         } else {
@@ -47,53 +51,36 @@ export default function UserProfileScreen() {
         if (isMounted) setLoading(false);
       }
     }
-    async function fetchPosts() {
+
+    async function fetchUserPosts() {
+      if (!profileId) return;
       setPostsLoading(true);
       try {
-        const userId = id || user?.id;
-        if (userId) {
-          const res = await api.getUserPosts(userId);
-          if (res.success && res.data && res.data.posts) {
-            setPosts(res.data.posts);
-          } else {
-            setPosts([]);
-          }
+        const res = await api.getUserPosts(profileId);
+        if (res.success && res.data && Array.isArray((res.data as any).posts)) {
+          const transformed = (res.data as any).posts.map(transformApiPost);
+          console.log('Profile posts:', transformed.map(p => ({ id: p.id, media: p.media })));
+          setUserPosts(transformed);
         }
-      } catch {
-        setPosts([]);
+      } catch (e) {
+        console.error("Failed to fetch user posts", e);
       } finally {
-        setPostsLoading(false);
+        if (isMounted) setPostsLoading(false);
       }
     }
-    fetchUser();
+    
+    fetchProfileData();
+    fetchUserPosts();
+    
     if (id) {
       setConnectionStatus(getConnectionStatus(id));
     } else {
       setConnectionStatus('accepted');
     }
+    
     return () => { isMounted = false; };
-  }, [id, getConnectionStatus]);
-
-  useEffect(() => {
-    if (user) {
-      const userId = id || user.id;
-      if (userId) {
-        setPostsLoading(true);
-        api.getUserPosts(userId).then(res => {
-          if (res.success && res.data && res.data.posts) {
-            setPosts(res.data.posts);
-          } else {
-            setPosts([]);
-          }
-          setPostsLoading(false);
-        }).catch(() => {
-          setPosts([]);
-          setPostsLoading(false);
-        });
-      }
-    }
-  }, [user, id]);
-
+  }, [profileId, getConnectionStatus, id]);
+  
   const handleConnect = () => {
     if (!id) return;
     sendConnectionRequest(id);
@@ -104,6 +91,155 @@ export default function UserProfileScreen() {
     if (!id) return;
     router.push(`/messages/${id}`);
   };
+
+  const handleLikePost = (postId: string) => {
+    likePost(postId);
+    setUserPosts(currentPosts => 
+      currentPosts.map(p => {
+        if (p.id === postId && authUser) {
+          const isLiked = p.likes.includes(authUser._id);
+          return {
+            ...p,
+            likes: isLiked 
+              ? p.likes.filter(likeId => likeId !== authUser._id)
+              : [...p.likes, authUser._id],
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  const renderItem = ({ item }: { item: Post }) => (
+    <PostCard post={item} onLike={() => handleLikePost(item.id)} />
+  );
+
+  const ListHeader = () => (
+    <>
+      <View style={styles.header}>
+        <View style={{ position: 'relative' }}>
+          <Image
+            source={{ uri: user.profileImageUrl }}
+            style={styles.profileImage}
+            contentFit="cover"
+          />
+          {profileId === authUser?._id && (
+            <View style={styles.cameraIconContainer}>
+              <TouchableOpacity>
+                <Camera size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+        
+        <Text style={styles.name}>{user.name}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          {user.isVerified ? (
+            <>
+              <CheckCircle size={18} color={Colors.success} style={{ marginRight: 4 }} />
+              <Text style={styles.verifiedText}>Verified</Text>
+            </>
+          ) : (
+            <>
+              <XCircle size={18} color={Colors.error} style={{ marginRight: 4 }} />
+              <Text style={styles.notVerifiedText}>Not Verified</Text>
+            </>
+          )}
+        </View>
+        <Text style={styles.role}>{user.role}</Text>
+        
+        {user.role === 'student' && (
+          <Text style={styles.details}>
+            {user.department}, Class of {user.graduationYear}
+          </Text>
+        )}
+        
+        {user.role === 'alumni' && (
+          <Text style={styles.details}>
+            {user.position} at {user.company}
+          </Text>
+        )}
+        
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{user.connectionsCount ?? 0}</Text>
+            <Text style={styles.statLabel}>Connections</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{userPosts.length}</Text>
+            <Text style={styles.statLabel}>Posts</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{user.queriesCount ?? 0}</Text>
+            <Text style={styles.statLabel}>Queries</Text>
+          </View>
+        </View>
+        
+        {profileId === authUser?._id ? (
+          <>
+            <Button title="Edit Profile" onPress={() => router.push('/edit-profile')} style={{ marginTop: 12 }} />
+            <Button title="Logout" onPress={() => { useAuthStore.getState().logout(); router.replace('/login'); }} variant="danger" style={{ marginTop: 8 }} />
+          </>
+        ) : (
+          <View style={styles.actionsContainer}>
+            {connectionStatus === 'none' && (
+              <Button
+                title="Connect"
+                onPress={handleConnect}
+                variant="primary"
+                style={styles.actionButton}
+              />
+            )}
+            
+            {connectionStatus === 'pending' && (
+              <Button
+                title="Request Pending"
+                disabled={true}
+                style={styles.actionButton}
+              />
+            )}
+            
+            {connectionStatus === 'accepted' && (
+              <Button
+                title="Message"
+                onPress={handleMessage}
+                variant="primary"
+                style={styles.actionButton}
+                icon={<MessageCircle size={16} color="#FFFFFF" style={{ marginRight: 8 }} />}
+              />
+            )}
+          </View>
+        )}
+      </View>
+      
+      <View style={styles.bioSection}>
+        <Text style={styles.sectionTitle}>Bio</Text>
+        <Text style={styles.bioText}>{user.bio || 'No bio added yet.'}</Text>
+      </View>
+      
+      {user.role === 'alumni' && user.company && (
+        <View style={styles.experienceSection}>
+          <Text style={styles.sectionTitle}>Experience</Text>
+          <View style={styles.experienceItem}>
+            <Text style={styles.companyName}>{user.company}</Text>
+            <Text style={styles.position}>{user.position}</Text>
+          </View>
+        </View>
+      )}
+      
+      {user.role === 'student' && user.department && (
+        <View style={styles.educationSection}>
+          <Text style={styles.sectionTitle}>Education</Text>
+          <View style={styles.educationItem}>
+            <Text style={styles.universityName}>ConnectU University</Text>
+            <Text style={styles.degreeName}>{user.department}</Text>
+            <Text style={styles.duration}>Graduating {user.graduationYear}</Text>
+          </View>
+        </View>
+      )}
+      <Text style={[styles.sectionTitle, { marginLeft: 16, marginTop: 16 }]}>Posts</Text>
+    </>
+  );
 
   if (loading) {
     return (
@@ -116,7 +252,7 @@ export default function UserProfileScreen() {
   if (error || !user) {
     return (
       <View style={styles.notFoundContainer}>
-        <Text style={styles.notFoundText}>User not found</Text>
+        <Text style={styles.notFoundText}>{error || 'User not found'}</Text>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.backButton}>Go back</Text>
         </TouchableOpacity>
@@ -127,151 +263,14 @@ export default function UserProfileScreen() {
   return (
     <>
       <Stack.Screen options={{ title: user.name }} />
-      
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <View style={{ position: 'relative' }}>
-            <Image
-              source={{ uri: user.profileImageUrl }}
-              style={styles.profileImage}
-              contentFit="cover"
-            />
-            {isOwnProfile && (
-              <View style={styles.cameraIconContainer}>
-                <TouchableOpacity>
-                  <Camera size={24} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-          
-          <Text style={styles.name}>{user.name}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-            {user.isVerified ? (
-              <>
-                <CheckCircle size={18} color={Colors.success} style={{ marginRight: 4 }} />
-                <Text style={styles.verifiedText}>Verified</Text>
-              </>
-            ) : (
-              <>
-                <XCircle size={18} color={Colors.error} style={{ marginRight: 4 }} />
-                <Text style={styles.notVerifiedText}>Not Verified</Text>
-              </>
-            )}
-          </View>
-          <Text style={styles.role}>{user.role}</Text>
-          
-          {user.role === 'student' && (
-            <Text style={styles.details}>
-              {user.department}, Class of {user.graduationYear}
-            </Text>
-          )}
-          
-          {user.role === 'alumni' && (
-            <Text style={styles.details}>
-              {user.position} at {user.company}
-            </Text>
-          )}
-          
-          {/* Stats Row */}
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{user.connectionsCount ?? 0}</Text>
-              <Text style={styles.statLabel}>Connections</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{posts.length}</Text>
-              <Text style={styles.statLabel}>Posts</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{user.queriesCount ?? 0}</Text>
-              <Text style={styles.statLabel}>Queries</Text>
-            </View>
-          </View>
-          
-          {/* Buttons */}
-          {isOwnProfile ? (
-            <>
-              <Button title="Edit Profile" onPress={() => router.push('/edit-profile')} style={{ marginTop: 12 }} />
-              <Button title="Logout" onPress={() => router.push('/login')} variant="danger" style={{ marginTop: 8 }} />
-            </>
-          ) : (
-            <View style={styles.actionsContainer}>
-              {connectionStatus === 'none' && (
-                <Button
-                  title="Connect"
-                  onPress={handleConnect}
-                  variant="primary"
-                  style={styles.actionButton}
-                />
-              )}
-              
-              {connectionStatus === 'pending' && (
-                <Button
-                  title="Request Pending"
-                  disabled={true}
-                  style={styles.actionButton}
-                />
-              )}
-              
-              {connectionStatus === 'accepted' && (
-                <Button
-                  title="Message"
-                  onPress={handleMessage}
-                  variant="primary"
-                  style={styles.actionButton}
-                  icon={<MessageCircle size={16} color="#FFFFFF" style={{ marginRight: 8 }} />}
-                />
-              )}
-            </View>
-          )}
-        </View>
-        
-        <View style={styles.bioSection}>
-          <Text style={styles.sectionTitle}>Bio</Text>
-          <Text style={styles.bioText}>{user.bio || 'No bio added yet.'}</Text>
-        </View>
-        
-        {user.role === 'alumni' && (
-          <View style={styles.experienceSection}>
-            <Text style={styles.sectionTitle}>Experience</Text>
-            <View style={styles.experienceItem}>
-              <Text style={styles.companyName}>{user.company}</Text>
-              <Text style={styles.position}>{user.position}</Text>
-              <Text style={styles.duration}>2019 - Present</Text>
-            </View>
-          </View>
-        )}
-        
-        {user.role === 'student' && (
-          <View style={styles.educationSection}>
-            <Text style={styles.sectionTitle}>Education</Text>
-            <View style={styles.educationItem}>
-              <Text style={styles.universityName}>University Name</Text>
-              <Text style={styles.degree}>{user.department}</Text>
-              <Text style={styles.graduationYear}>Class of {user.graduationYear}</Text>
-            </View>
-          </View>
-        )}
-        
-        {/* Posts Grid */}
-        <View style={styles.postsSection}>
-          <Text style={styles.sectionTitle}>Posts</Text>
-          {postsLoading ? (
-            <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 16 }} />
-          ) : posts.length === 0 ? (
-            <Text style={{ textAlign: 'center', color: Colors.textSecondary, marginTop: 16 }}>No posts yet.</Text>
-          ) : (
-            <FlatList
-              data={posts}
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => <PostCard post={item} />}
-              scrollEnabled={false}
-              contentContainerStyle={{ paddingBottom: 24 }}
-            />
-          )}
-        </View>
-      </ScrollView>
+      <FlatList
+        style={styles.container}
+        data={userPosts}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={ListHeader}
+        ListFooterComponent={postsLoading ? <ActivityIndicator style={{ margin: 20 }} /> : null}
+      />
     </>
   );
 }
@@ -285,141 +284,69 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    backgroundColor: Colors.background,
   },
   notFoundText: {
     fontSize: 18,
-    fontWeight: '600',
     color: Colors.text,
-    marginBottom: 16,
   },
   backButton: {
-    fontSize: 16,
+    marginTop: 16,
     color: Colors.primary,
+    fontSize: 16,
   },
   header: {
-    alignItems: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 16,
     backgroundColor: Colors.card,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    padding: 20,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   profileImage: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: Colors.border,
-    marginBottom: 16,
+    borderWidth: 3,
+    borderColor: Colors.primary,
+  },
+  cameraIconContainer: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 8,
+    borderRadius: 20,
   },
   name: {
     fontSize: 24,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: Colors.text,
-    marginBottom: 4,
+    marginTop: 12,
+  },
+  verifiedText: {
+    color: Colors.success,
+    fontWeight: '500',
+  },
+  notVerifiedText: {
+    color: Colors.error,
+    fontWeight: '500',
   },
   role: {
     fontSize: 16,
     color: Colors.textSecondary,
     textTransform: 'capitalize',
-    marginBottom: 8,
+    marginTop: 4,
   },
   details: {
     fontSize: 14,
-    color: Colors.text,
-    marginBottom: 16,
-  },
-  actionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  actionButton: {
-    minWidth: 140,
-  },
-  bioSection: {
-    padding: 16,
-    backgroundColor: Colors.card,
-    marginTop: 16,
-    marginHorizontal: 16,
-    borderRadius: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  bioText: {
-    fontSize: 14,
-    color: Colors.text,
-    lineHeight: 20,
-  },
-  experienceSection: {
-    padding: 16,
-    backgroundColor: Colors.card,
-    marginTop: 16,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 24,
-  },
-  experienceItem: {
-    marginBottom: 8,
-  },
-  companyName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  position: {
-    fontSize: 14,
-    color: Colors.text,
-    marginVertical: 2,
-  },
-  duration: {
-    fontSize: 12,
     color: Colors.textSecondary,
-  },
-  educationSection: {
-    padding: 16,
-    backgroundColor: Colors.card,
-    marginTop: 16,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 24,
-  },
-  educationItem: {
-    marginBottom: 8,
-  },
-  universityName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  degree: {
-    fontSize: 14,
-    color: Colors.text,
-    marginVertical: 2,
-  },
-  graduationYear: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  verifiedText: {
-    color: Colors.success,
-    fontWeight: '600',
-    marginRight: 8,
-  },
-  notVerifiedText: {
-    color: Colors.error,
-    fontWeight: '600',
-    marginRight: 8,
+    marginTop: 4,
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 8,
+    width: '100%',
+    marginTop: 20,
   },
   statBox: {
     alignItems: 'center',
@@ -430,24 +357,71 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    marginTop: 16,
+  },
+  actionButton: {
+    flex: 1,
+    marginHorizontal: 8,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  bioSection: {
+    padding: 16,
+    backgroundColor: Colors.card,
+    marginTop: 8,
+  },
+  bioText: {
+    fontSize: 15,
+    color: Colors.text,
+    lineHeight: 22,
+  },
+  experienceSection: {
+    padding: 16,
+    backgroundColor: Colors.card,
+    marginTop: 8,
+  },
+  experienceItem: {
+    marginBottom: 8,
+  },
+  companyName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.text,
+  },
+  position: {
+    fontSize: 15,
     color: Colors.textSecondary,
   },
-  cameraIconContainer: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: Colors.primary,
-    borderRadius: 20,
-    padding: 4,
+  duration: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 4,
   },
-  cameraIcon: {
-    width: 24,
-    height: 24,
-    tintColor: '#fff',
+  educationSection: {
+    padding: 16,
+    backgroundColor: Colors.card,
+    marginTop: 8,
   },
-  postsSection: {
-    marginTop: 24,
-    marginHorizontal: 16,
+  educationItem: {
+    marginBottom: 8,
+  },
+  universityName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.text,
+  },
+  degreeName: {
+    fontSize: 15,
+    color: Colors.textSecondary,
   },
 });

@@ -11,6 +11,7 @@ import { Camera, LogOut, Edit2, CheckCircle, XCircle } from 'lucide-react-native
 import { useRouter } from 'expo-router';
 import { api } from '@/utils/api';
 import PostCard from '@/components/PostCard';
+import { transformApiPost } from '@/store/feedStore';
 
 export default function ProfileScreen() {
   const { user, isLoading: authLoading, checkAuthState, logout } = useAuthStore();
@@ -40,35 +41,7 @@ export default function ProfileScreen() {
     try {
       const res = await api.getUserPosts(user.id);
       if (res.success && res.data && res.data.posts) {
-        setPosts(res.data.posts.map((post: any) => ({
-          id: post._id,
-          userId: post.author?._id,
-          user: post.author ? {
-            id: post.author._id,
-            name: post.author.name,
-            email: post.author.email,
-            role: post.author.role,
-            profileImageUrl: post.author.profileImageUrl,
-          } : null,
-          caption: post.caption || '',
-          mediaUrl: post.media?.[0]?.url || null,
-          mediaType: post.media?.[0]?.type || null,
-          likes: Array.isArray(post.likes) ? post.likes.map((like: any) => like._id || like) : [],
-          comments: Array.isArray(post.comments) ? post.comments.map((comment: any) => ({
-            id: comment._id,
-            userId: comment.user?._id,
-            user: comment.user ? {
-              id: comment.user._id,
-              name: comment.user.name,
-              email: comment.user.email,
-              role: comment.user.role,
-              profileImageUrl: comment.user.profileImageUrl,
-            } : null,
-            text: comment.content || '',
-            createdAt: comment.createdAt,
-          })) : [],
-          createdAt: post.createdAt,
-        })));
+        setPosts(res.data.posts.map(transformApiPost));
       } else {
         setPosts([]);
       }

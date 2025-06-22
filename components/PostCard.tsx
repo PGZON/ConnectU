@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, Dimensions, FlatList } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Heart, MessageCircle, Share2 } from 'lucide-react-native';
@@ -8,6 +8,7 @@ import { Post } from '@/types';
 import Colors from '@/constants/colors';
 import Avatar from './Avatar';
 import { formatTimeAgo } from '@/utils/dateUtils';
+import { useAuthStore } from '@/store/authStore';
 
 interface PostCardProps {
   post: Post;
@@ -16,10 +17,31 @@ interface PostCardProps {
 }
 
 const { width } = Dimensions.get('window');
+const MEDIA_SECTION_WIDTH = width;
 
 export default function PostCard({ post, onLike, onComment }: PostCardProps) {
   const router = useRouter();
-  const isLiked = post.likes.includes('1'); // Assuming current user id is '1'
+  const [isLiked, setIsLiked] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
+
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    if (viewableItems.length > 0) {
+      setActiveIndex(viewableItems[0].index);
+    }
+  }).current;
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50,
+  }).current;
+
+  const { user: currentUser } = useAuthStore();
+
+  React.useEffect(() => {
+    if (currentUser) {
+      setIsLiked(post.likes.includes(currentUser._id));
+    }
+  }, [post.likes, currentUser]);
 
   const handleLike = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -37,8 +59,19 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
   };
 
   const handleProfilePress = () => {
-    router.push(`/profile/${post.userId}`);
+    if (post.user) {
+      router.push(`/profile/${post.user.id}`);
+    }
   };
+
+  const renderMediaItem = ({ item }: { item: any }) => (
+    <Image
+      source={{ uri: item.url }}
+      style={styles.media}
+      contentFit="cover"
+      transition={300}
+    />
+  );
 
   return (
     <View style={styles.container}>
@@ -54,13 +87,44 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
 
       <Text style={styles.caption}>{post.caption}</Text>
 
-      {post.mediaUrl && (
-        <Image
-          source={{ uri: post.mediaUrl }}
-          style={styles.media}
-          contentFit="cover"
-          transition={300}
-        />
+      {post.media && post.media.length > 0 && (
+        <View style={styles.mediaContainer}>
+          {post.media.length === 1 ? (
+            <Image
+              source={{ uri: post.media[0].url }}
+              style={styles.media}
+              contentFit="cover"
+              transition={300}
+            />
+          ) : (
+            <>
+              <FlatList
+                ref={flatListRef}
+                data={post.media}
+                renderItem={renderMediaItem}
+                keyExtractor={(item) => item.url}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onViewableItemsChanged={onViewableItemsChanged}
+                viewabilityConfig={viewabilityConfig}
+                style={{ width: MEDIA_SECTION_WIDTH }}
+                contentContainerStyle={{ width: MEDIA_SECTION_WIDTH * post.media.length }}
+              />
+              <View style={styles.pagination}>
+                {post.media.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.paginationDot,
+                      index === activeIndex ? styles.paginationDotActive : {},
+                    ]}
+                  />
+                ))}
+              </View>
+            </>
+          )}
+        </View>
       )}
 
       <View style={styles.actions}>
@@ -132,9 +196,33 @@ const styles = StyleSheet.create({
     color: Colors.text,
     lineHeight: 20,
   },
+  mediaContainer: {
+    position: 'relative',
+    width: MEDIA_SECTION_WIDTH,
+    height: width, // 1:1 aspect ratio
+    backgroundColor: Colors.border,
+    marginBottom: 8,
+  },
   media: {
-    width: width,
-    height: width,
+    width: MEDIA_SECTION_WIDTH,
+    height: '100%',
+    borderRadius: 0,
+  },
+  pagination: {
+    position: 'absolute',
+    bottom: 12,
+    flexDirection: 'row',
+    alignSelf: 'center',
+  },
+  paginationDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    marginHorizontal: 4,
+  },
+  paginationDotActive: {
+    backgroundColor: '#FFFFFF',
   },
   actions: {
     flexDirection: 'row',

@@ -3,6 +3,37 @@ import { Post } from '@/types';
 import { api } from '@/utils/api';
 import { useAuthStore } from './authStore';
 
+export const transformApiPost = (post: any): Post => ({
+  id: post._id,
+  userId: post.author?._id,
+  user: post.author ? {
+    _id: post.author._id,
+    id: post.author._id,
+    name: post.author.name,
+    email: post.author.email,
+    role: post.author.role,
+    profileImageUrl: post.author.profileImageUrl,
+  } : undefined,
+  caption: post.caption || '',
+  media: Array.isArray(post.media) ? post.media : [],
+  likes: Array.isArray(post.likes) ? post.likes.map((like: any) => like._id || like) : [],
+  comments: Array.isArray(post.comments) ? post.comments.map((comment: any) => ({
+    id: comment._id,
+    userId: comment.user?._id,
+    user: comment.user ? {
+      _id: comment.user._id,
+      id: comment.user._id,
+      name: comment.user.name,
+      email: comment.user.email,
+      role: comment.user.role,
+      profileImageUrl: comment.user.profileImageUrl,
+    } : undefined,
+    text: comment.content || '',
+    createdAt: comment.createdAt,
+  })) : [],
+  createdAt: post.createdAt,
+});
+
 interface FeedState {
   posts: Post[];
   isLoading: boolean;
@@ -12,7 +43,7 @@ interface FeedState {
   fetchPosts: (page?: number) => Promise<void>;
   likePost: (postId: string) => Promise<void>;
   addComment: (postId: string, text: string) => Promise<void>;
-  createPost: (caption: string, mediaUri?: string, mediaType?: 'image' | 'video', onProgress?: (progress: number) => void) => Promise<void>;
+  createPost: (caption: string, mediaUris?: string[], mediaType?: 'image' | 'video', onProgress?: (progress: number) => void) => Promise<void>;
   refreshPosts: () => Promise<void>;
 }
 
@@ -53,35 +84,7 @@ export const useFeedStore = create<FeedState>((set, get) => ({
         hasMore: response.data.pagination?.hasNextPage
       });
       
-      const transformedPosts: Post[] = response.data.posts.map((post: any) => ({
-        id: post._id,
-        userId: post.author?._id,
-        user: post.author ? {
-          id: post.author._id,
-          name: post.author.name,
-          email: post.author.email,
-          role: post.author.role,
-          profileImageUrl: post.author.profileImageUrl,
-        } : null,
-        caption: post.caption || '',
-        mediaUrl: post.media?.[0]?.url || null,
-        mediaType: post.media?.[0]?.type || null,
-        likes: Array.isArray(post.likes) ? post.likes.map((like: any) => like._id || like) : [],
-        comments: Array.isArray(post.comments) ? post.comments.map((comment: any) => ({
-          id: comment._id,
-          userId: comment.user?._id,
-          user: comment.user ? {
-            id: comment.user._id,
-            name: comment.user.name,
-            email: comment.user.email,
-            role: comment.user.role,
-            profileImageUrl: comment.user.profileImageUrl,
-          } : null,
-          text: comment.content || '',
-          createdAt: comment.createdAt,
-        })) : [],
-        createdAt: post.createdAt,
-      }));
+      const transformedPosts: Post[] = response.data.posts.map(transformApiPost);
 
       if (page === 1) {
         set({ 
@@ -191,12 +194,12 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     }
   },
   
-  createPost: async (caption, mediaUri, mediaType, onProgress) => {
+  createPost: async (caption, mediaUris, mediaType, onProgress) => {
     set({ isLoading: true, error: null });
     try {
       let response;
-      if (mediaUri) {
-        response = await api.createPostWithMedia(caption, mediaUri, mediaType || 'image', onProgress);
+      if (mediaUris && mediaUris.length > 0) {
+        response = await api.createPostWithMedia(caption, mediaUris, mediaType || 'image', onProgress);
       } else {
         response = await api.createPost({ caption });
       }

@@ -7,34 +7,47 @@ const { uploadImage, uploadVideo } = require('../config/cloudinary');
 // @access  Private
 const createPost = async (req, res) => {
   try {
+    const { caption } = req.body;
+    if (caption && caption.length > 1000) {
+      return badRequestResponse(res, 'Caption cannot exceed 1000 characters');
+    }
+
     let mediaArr = [];
-    if (req.file) {
-      console.log('Received file:', req.file.originalname, req.file.mimetype, req.file.path);
-      let result;
-      let type = 'image';
-      if (req.file.mimetype.startsWith('video/')) {
-        console.log('Uploading video to Cloudinary...');
-        result = await uploadVideo(req.file.path, 'connectu/posts');
-        type = 'video';
-        console.log('Video uploaded to Cloudinary:', result.url);
-      } else {
-        console.log('Uploading image to Cloudinary...');
-        result = await uploadImage(req.file.path, 'connectu/posts');
-        console.log('Image uploaded to Cloudinary:', result.url);
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        console.log('Received file:', file.originalname, file.mimetype, file.path);
+        let result;
+        let type = 'image';
+        if (file.mimetype.startsWith('video/')) {
+          console.log('Uploading video to Cloudinary...');
+          result = await uploadVideo(file.path, 'connectu/posts');
+          type = 'video';
+          console.log('Video uploaded to Cloudinary:', result.url);
+        } else {
+          console.log('Uploading image to Cloudinary...');
+          result = await uploadImage(file.path, 'connectu/posts', {
+            width: 1200,
+            height: 1200,
+            crop: 'limit',
+            quality: 'auto:good'
+          });
+          console.log('Image uploaded to Cloudinary:', result.url);
+        }
+        mediaArr.push({
+          type,
+          url: result.url,
+          publicId: result.publicId,
+          thumbnail: result.thumbnail || null
+        });
       }
-      mediaArr.push({
-        type,
-        url: result.url,
-        publicId: result.publicId,
-        thumbnail: result.thumbnail || null
-      });
     } else if (Array.isArray(req.body.media) && req.body.media.length > 0) {
       console.warn('WARNING: Post created with req.body.media, not via file upload. This may store local URIs! req.body.media:', req.body.media);
       mediaArr = req.body.media;
     }
+    console.log('mediaArr to be saved:', mediaArr);
     const postData = {
       author: req.user._id,
-      caption: req.body.caption,
+      caption: caption,
       media: mediaArr,
       tags: req.body.tags || [],
       isPublic: req.body.isPublic !== false
@@ -266,21 +279,19 @@ const getTrendingPosts = async (req, res) => {
 // @access  Public
 const getUserPosts = async (req, res) => {
   try {
+    const { userId } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    const query = { author: req.params.userId };
-    
-    if (!req.user || req.params.userId !== req.user._id.toString()) {
-      query.isPublic = true;
-    }
+    const query = { author: userId, isActive: true };
 
     const posts = await Post.find(query)
       .populate('author', 'name email role profileImageUrl')
       .sort({ createdAt: -1 })
       .limit(limit)
-      .skip(skip);
+      .skip(skip)
+      .lean({ virtuals: true });
 
     const total = await Post.countDocuments(query);
 
@@ -290,8 +301,7 @@ const getUserPosts = async (req, res) => {
         currentPage: page,
         totalPages: Math.ceil(total / limit),
         totalItems: total,
-        itemsPerPage: limit
-      }
+      },
     }, 'User posts retrieved successfully');
   } catch (error) {
     console.error('Get user posts error:', error);
