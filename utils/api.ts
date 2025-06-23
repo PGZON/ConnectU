@@ -165,16 +165,18 @@ class ApiClient {
     const url = `${this.baseURL}${endpoint}`;
     const token = await getAuthToken();
 
-    console.log('Making API request to:', url);
-
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+    const baseHeaders = {
+      'Accept': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...options.headers,
+    };
+    if (!isFormData && (!options.headers || !('Content-Type' in options.headers))) {
+      baseHeaders['Content-Type'] = 'application/json';
+    }
     const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
       ...options,
+      headers: baseHeaders,
     };
 
     try {
@@ -259,6 +261,22 @@ class ApiClient {
       console.error('API request failed:', error);
       throw error;
     }
+  }
+
+  // Generic POST method for JSON and FormData
+  async post(endpoint: string, body: any, options: RequestInit = {}): Promise<any> {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    const token = await getAuthToken();
+    const headers = isFormData
+      ? { ...(options.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      : { 'Content-Type': 'application/json', ...(options.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+
+    return this.request(endpoint, {
+      ...options,
+      method: 'POST',
+      body: isFormData ? body : JSON.stringify(body),
+      headers,
+    });
   }
 
   // Auth API

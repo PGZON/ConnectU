@@ -68,7 +68,7 @@ export default function ProfileScreen() {
   };
   
   const handlePickImage = async () => {
-     if (Platform.OS !== 'web') {
+    if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to make this work!');
@@ -82,7 +82,25 @@ export default function ProfileScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      Alert.alert('Not implemented', 'Profile image update is not implemented yet.');
+      const image = result.assets[0];
+      const formData = new FormData();
+      formData.append('file', {
+        uri: image.uri,
+        name: 'profile.jpg',
+        type: 'image/jpeg',
+      } as any);
+      try {
+        const response = await api.post('/users/upload/profile-image', formData);
+        if (response.data && response.data.profileImage) {
+          Alert.alert('Success', 'Profile image updated!');
+          if (checkAuthState) checkAuthState(); // Refresh user data
+        } else {
+          Alert.alert('Error', 'Failed to update profile image.');
+        }
+      } catch (error) {
+        console.log('Upload error:', error);
+        Alert.alert('Error', 'Failed to upload image.');
+      }
     }
   };
 
