@@ -39,36 +39,20 @@ app.use(helmet());
 app.use(compression());
 
 // CORS configuration
-const developmentOrigins = [
-  /localhost/, 
-  /192\.168\.175\.239/ // Using regex to match any port on this IP
-];
-
 const corsOptions = {
+  origin: true, // Allow all origins
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  origin: (origin, callback) => {
-    if (process.env.NODE_ENV !== 'production') {
-      // In dev, allow from common dev origins
-      if (!origin || developmentOrigins.some(pattern => pattern.test(origin))) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    } else {
-      // In prod, only allow from the production domain
-      const productionOrigin = 'https://your-production-domain.com';
-      if (origin === productionOrigin) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    }
-  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600 // 10 minutes
 };
 
+// Apply CORS middleware
 app.use(cors(corsOptions));
+
+// Enable pre-flight requests for all routes
+app.options('*', cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({
