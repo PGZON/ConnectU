@@ -78,6 +78,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="network"
         options={{
+          headerShown: false,
           title: 'Network',
           tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
           tabBarBadge: requestCount > 0 ? requestCount : undefined,
@@ -87,6 +88,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="messages"
         options={{
+          headerShown: false,
           title: 'Messages',
           tabBarIcon: ({ color, size }) => (
             <View>
