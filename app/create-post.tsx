@@ -5,6 +5,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { useFeedStore } from '@/store/feedStore';
 import Colors from '@/constants/colors';
 import { Image as ImageIcon, X, Send } from 'lucide-react-native';
+import Avatar from '@/components/Avatar';
+import { useAuthStore } from '@/store/authStore';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 const MAX_CAPTION_LENGTH = 1500;
 const MAX_IMAGES = 5;
@@ -13,6 +17,7 @@ export default function CreatePostScreen() {
   const [caption, setCaption] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const { createPost, isLoading } = useFeedStore();
+  const { user } = useAuthStore();
   const router = useRouter();
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
@@ -81,13 +86,13 @@ export default function CreatePostScreen() {
     <>
       <Stack.Screen options={{ title: 'Create Post' }} />
       
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.inputContainer}>
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <View style={styles.card}>
+            <View style={styles.userRow}>
+              <Avatar uri={user?.profileImageUrl} size={44} borderWidth={2} />
+              <Text style={styles.userName}>{user?.name}</Text>
+            </View>
             <TextInput
               style={styles.captionInput}
               placeholder="What's on your mind?"
@@ -98,53 +103,61 @@ export default function CreatePostScreen() {
               placeholderTextColor={Colors.textSecondary}
               autoFocus
             />
-          </View>
-
-          <Text style={styles.charCounter}>{remainingChars} characters remaining</Text>
-          
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagePreviewScrollView}>
-            {images.map(uri => (
-              <View key={uri} style={styles.imagePreviewContainer}>
-                <Image source={{ uri }} style={styles.imagePreview} />
-                <TouchableOpacity style={styles.removeImageButton} onPress={() => handleRemoveImage(uri)}>
-                  <X size={20} color="#FFFFFF" />
-                </TouchableOpacity>
+            <Text style={styles.charCounter}>{remainingChars} characters remaining</Text>
+            
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagePreviewScrollView}>
+              {images.map(uri => (
+                <Animated.View key={uri} entering={FadeIn} exiting={FadeOut} style={styles.imagePreviewContainer}>
+                  <Image source={{ uri }} style={styles.imagePreview} />
+                  <TouchableOpacity style={styles.removeImageButton} onPress={() => handleRemoveImage(uri)}>
+                    <X size={20} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </Animated.View>
+              ))}
+            </ScrollView>
+            
+            {images.length < MAX_IMAGES && (
+              <TouchableOpacity style={styles.fabAddImage} onPress={handlePickImage} activeOpacity={0.85}>
+                <LinearGradient
+                  colors={["#fd5f36", "#fcae3e", "#f77737", "#e1306c", "#c13584", "#5851db"]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  style={styles.fabGradient}
+                >
+                  <ImageIcon size={28} color="#fff" />
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+            
+            {isLoading && uploadProgress !== null && (
+              <View style={styles.progressBarContainer}>
+                <View style={[styles.progressBar, { width: `${uploadProgress}%` }]} />
               </View>
-            ))}
-          </ScrollView>
-          
-          {images.length < MAX_IMAGES && (
-            <TouchableOpacity style={styles.addImageButton} onPress={handlePickImage}>
-              <ImageIcon size={24} color={Colors.primary} />
-              <Text style={styles.addImageText}>
-                {images.length > 0 ? `Add More Photos (${images.length}/${MAX_IMAGES})` : `Add Photos (${images.length}/${MAX_IMAGES})`}
-              </Text>
-            </TouchableOpacity>
-          )}
-          
-          {isLoading && uploadProgress !== null && (
-            <View style={styles.uploadingContainer}>
-              <ActivityIndicator size="small" color={Colors.primary} />
-              <Text style={styles.uploadingText}>Uploading: {uploadProgress}%</Text>
-            </View>
-          )}
-          {uploadStatus && (
-            <Text style={[styles.statusText, { color: uploadStatus.includes('successful') ? 'green' : 'red' }]}>{uploadStatus}</Text>
-          )}
+            )}
+            {uploadStatus && (
+              <Text style={[styles.statusText, { color: uploadStatus.includes('successful') ? 'green' : 'red' }]}>{uploadStatus}</Text>
+            )}
+          </View>
         </ScrollView>
 
-        <TouchableOpacity 
-          style={[styles.postButton, isPostDisabled && styles.postButtonDisabled]}
+        <TouchableOpacity
+          style={[styles.fabPost, isPostDisabled && styles.fabPostDisabled]}
           onPress={handlePost}
           disabled={isPostDisabled}
+          activeOpacity={0.85}
         >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Send size={24} color="#FFFFFF" />
-          )}
+          <LinearGradient
+            colors={["#fd5f36", "#fcae3e", "#f77737", "#e1306c", "#c13584", "#5851db"]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={styles.fabGradient}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Send size={28} color="#FFFFFF" />
+            )}
+          </LinearGradient>
         </TouchableOpacity>
-      </KeyboardAvoidingView>
+      </View>
     </>
   );
 }
@@ -157,104 +170,130 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     padding: 16,
-    paddingBottom: 100, // Space for the floating button
+    paddingBottom: 120, // More space for floating buttons
   },
-  inputContainer: {
+  card: {
     backgroundColor: Colors.card,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: 18,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+    marginBottom: 24,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  userName: {
+    marginLeft: 12,
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors.text,
   },
   captionInput: {
-    fontSize: 16,
+    fontSize: 17,
     color: Colors.text,
-    minHeight: 120,
+    minHeight: 100,
     textAlignVertical: 'top',
+    backgroundColor: '#fafafa',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
   },
   charCounter: {
     fontSize: 12,
     color: Colors.textSecondary,
     textAlign: 'right',
-    marginTop: 8,
-    marginRight: 4,
+    marginBottom: 8,
   },
   imagePreviewScrollView: {
-    marginTop: 16,
+    marginTop: 8,
+    marginBottom: 16,
   },
   imagePreviewContainer: {
     position: 'relative',
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
-    marginRight: 12,
+    marginRight: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4,
   },
   imagePreview: {
-    width: 200,
-    height: 200,
+    width: 120,
+    height: 120,
     backgroundColor: Colors.border,
   },
   removeImageButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  addImageButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  fabAddImage: {
+    position: 'absolute',
+    left: 24,
+    bottom: -32,
+    zIndex: 10,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  fabGradient: {
+    flex: 1,
+    borderRadius: 28,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressBarContainer: {
+    height: 6,
+    backgroundColor: Colors.border,
+    borderRadius: 3,
+    overflow: 'hidden',
     marginTop: 16,
-    paddingVertical: 12,
-    backgroundColor: Colors.card,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    marginBottom: 8,
   },
-  addImageText: {
-    marginLeft: 12,
-    fontSize: 16,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  uploadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 16,
-  },
-  uploadingText: {
-    marginLeft: 8,
-    fontSize: 16,
-    color: Colors.primary,
+  progressBar: {
+    height: 6,
+    backgroundColor: '#fd5f36',
+    borderRadius: 3,
   },
   statusText: {
     textAlign: 'center',
     marginBottom: 8,
     fontWeight: '500',
   },
-  postButton: {
+  fabPost: {
     position: 'absolute',
-    bottom: 24,
+    bottom: 720,
     right: 24,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4, // Android shadow
-    shadowColor: '#000', // iOS shadow
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 20,
   },
-  postButtonDisabled: {
-    backgroundColor: Colors.inactive,
+  fabPostDisabled: {
+    opacity: 0.5,
   },
 });

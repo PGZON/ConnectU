@@ -12,6 +12,7 @@ export interface User {
   graduationYear?: number;
   company?: string;
   position?: string;
+  isVerified?: boolean;
 }
 
 export interface Media {

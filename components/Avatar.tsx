@@ -11,6 +11,7 @@ interface AvatarProps {
 
 export default function Avatar({ uri, size = 40, borderWidth = 0 }: AvatarProps) {
   const defaultImage = 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60';
+  const cacheBustedUri = uri ? `${uri}${uri.includes('?') ? '&' : '?'}cb=${Date.now()}` : defaultImage;
   
   return (
     <View style={[
@@ -23,7 +24,7 @@ export default function Avatar({ uri, size = 40, borderWidth = 0 }: AvatarProps)
       }
     ]}>
       <Image
-        source={{ uri: uri || defaultImage }}
+        source={{ uri: cacheBustedUri }}
         style={styles.image}
         contentFit="cover"
         transition={200}

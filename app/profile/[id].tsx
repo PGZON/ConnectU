@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, Alert } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import useConnectionStore from '@/store/connectionStore';
@@ -11,6 +11,7 @@ import { MessageCircle, CheckCircle, XCircle, Camera } from 'lucide-react-native
 import { api } from '@/utils/api';
 import PostCard from '@/components/PostCard';
 import { Post } from '@/types';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function UserProfileScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
@@ -29,6 +30,7 @@ export default function UserProfileScreen() {
   const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'accepted'>('none');
   
   const { likePost } = useFeedStore();
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -110,6 +112,46 @@ export default function UserProfileScreen() {
     );
   };
 
+  const handleProfileImageChange = async () => {
+    try {
+      // Ask for permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Please grant photo library access to change your profile image.');
+        return;
+      }
+      // Pick image
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (result.canceled) return;
+      setUploading(true);
+      const asset = result.assets[0];
+      const formData = new FormData();
+      formData.append('file', {
+        uri: asset.uri,
+        name: asset.fileName || 'profile.jpg',
+        type: asset.type || 'image/jpeg',
+      });
+      // Upload to backend
+      const uploadRes = await api.uploadProfileImage(formData);
+      if (!uploadRes.success) {
+        throw new Error(uploadRes.message || 'Failed to upload image');
+      }
+      // Refresh user and feed
+      await fetchProfileData();
+      useFeedStore.getState().refreshPosts();
+      Alert.alert('Success', 'Profile image updated!');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to update profile image');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const renderItem = ({ item }: { item: Post }) => (
     <PostCard post={item} onLike={() => handleLikePost(item.id)} />
   );
@@ -125,8 +167,12 @@ export default function UserProfileScreen() {
           />
           {profileId === authUser?._id && (
             <View style={styles.cameraIconContainer}>
-              <TouchableOpacity>
-                <Camera size={24} color="#fff" />
+              <TouchableOpacity onPress={handleProfileImageChange} disabled={uploading}>
+                {uploading ? (
+                  <ActivityIndicator size={24} color="#fff" />
+                ) : (
+                  <Camera size={24} color="#fff" />
+                )}
               </TouchableOpacity>
             </View>
           )}

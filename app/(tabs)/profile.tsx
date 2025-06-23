@@ -12,16 +12,25 @@ import { useRouter } from 'expo-router';
 import { api } from '@/utils/api';
 import PostCard from '@/components/PostCard';
 import { transformApiPost } from '@/store/feedStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Progress from 'react-native-progress';
+import { API_BASE_URL } from '@/utils/api';
+import { User } from '@/types';
+import { Post } from '@/types';
+import { useFeedStore } from '@/store/feedStore';
+import { useMessageStore } from '@/store/messageStore';
 
 export default function ProfileScreen() {
   const { user, isLoading: authLoading, checkAuthState, logout } = useAuthStore();
   const { connections, fetchConnections } = useConnectionStore();
   const { userQueries, fetchQueriesForUser } = useQueryStore();
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [verificationLoading, setVerificationLoading] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const router = useRouter();
 
   const fetchUserPosts = useCallback(async () => {
@@ -89,16 +98,50 @@ export default function ProfileScreen() {
         name: 'profile.jpg',
         type: 'image/jpeg',
       } as any);
+      setUploading(true);
+      setProgress(0);
       try {
-        const response = await api.post('/users/upload/profile-image', formData);
-        if (response.data && response.data.profileImage) {
-          Alert.alert('Success', 'Profile image updated!');
-          if (checkAuthState) checkAuthState(); // Refresh user data
-        } else {
-          Alert.alert('Error', 'Failed to update profile image.');
+        const token = await AsyncStorage.getItem('auth_token');
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_BASE_URL}/users/upload/profile-image`);
+        if (token) {
+          xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         }
+        xhr.onload = async () => {
+          setUploading(false);
+          setProgress(100);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            Alert.alert('Success', 'Profile image updated!');
+            if (checkAuthState) checkAuthState();
+            try {
+              useFeedStore.getState().refreshPosts();
+            } catch {}
+            try {
+              useConnectionStore.getState().fetchAllUsers();
+            } catch {}
+            try {
+              if (user?.id) useMessageStore.getState().fetchMessages(user.id);
+            } catch {}
+          } else {
+            console.log('Upload failed:', xhr.status, xhr.responseText);
+            Alert.alert('Error', 'Failed to update profile image.');
+          }
+        };
+        xhr.onerror = () => {
+          setUploading(false);
+          console.log('XHR error:', xhr.status, xhr.responseText);
+          Alert.alert('Error', 'Failed to upload image.');
+        };
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            setProgress(percent);
+            console.log('Upload progress:', percent);
+          }
+        };
+        xhr.send(formData);
       } catch (error) {
-        console.log('Upload error:', error);
+        setUploading(false);
         Alert.alert('Error', 'Failed to upload image.');
       }
     }
@@ -151,9 +194,25 @@ export default function ProfileScreen() {
             style={styles.profileImage}
             contentFit="cover"
           />
+          {uploading && (
+            <View style={styles.uploadOverlay}>
+              <Progress.Circle
+                size={80}
+                progress={progress / 100}
+                showsText={true}
+                formatText={() => `${progress}%`}
+                color={Colors.primary}
+                unfilledColor={'#e0e0e0'}
+                borderWidth={0}
+                thickness={6}
+                textStyle={{ fontWeight: 'bold', color: Colors.primary, fontSize: 18 }}
+              />
+            </View>
+          )}
           <TouchableOpacity 
             style={styles.cameraButton}
             onPress={handlePickImage}
+            disabled={uploading}
           >
             <Camera size={18} color="#FFFFFF" />
           </TouchableOpacity>
@@ -174,7 +233,6 @@ export default function ProfileScreen() {
                 onPress={handleVerify}
                 disabled={verificationLoading}
                 style={{ marginLeft: 8 }}
-                small
               />
             </>
           )}
@@ -206,16 +264,14 @@ export default function ProfileScreen() {
           fullWidth
           style={styles.actionButton}
           textStyle={styles.actionButtonText}
-          icon={<Edit2 size={16} color={Colors.primary} style={{ marginRight: 8 }} />}
         />
         <Button
           title="Logout"
           onPress={handleLogout}
           variant="outline"
           fullWidth
-          style={[styles.actionButton, styles.logoutButton]}
-          textStyle={[styles.actionButtonText, styles.logoutButtonText]}
-          icon={<LogOut size={16} color={Colors.error} style={{ marginRight: 8 }} />}
+          style={StyleSheet.flatten([styles.actionButton, styles.logoutButton])}
+          textStyle={StyleSheet.flatten([styles.actionButtonText, styles.logoutButtonText])}
         />
       </View>
       <View style={styles.statsSection}>
@@ -388,5 +444,16 @@ const styles = StyleSheet.create({
   postsSection: {
     marginTop: 24,
     marginHorizontal: 16,
+  },
+  uploadOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
