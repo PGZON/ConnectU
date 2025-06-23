@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, Alert } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -12,6 +12,7 @@ import { api } from '@/utils/api';
 import PostCard from '@/components/PostCard';
 import { Post } from '@/types';
 import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function UserProfileScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
@@ -82,6 +83,48 @@ export default function UserProfileScreen() {
     
     return () => { isMounted = false; };
   }, [profileId, getConnectionStatus, id]);
+  
+  // Refetch profile data every time the screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (profileId) {
+        // These are defined in the useEffect above
+        // But we need to redefine them here for scope
+        const fetchProfileData = async () => {
+          setLoading(true);
+          setError(null);
+          try {
+            const res = await api.getUserProfile(profileId);
+            if (res.success && res.data) {
+              setUser(res.data);
+            } else {
+              setError('User not found');
+            }
+          } catch (err: any) {
+            setError('User not found');
+          } finally {
+            setLoading(false);
+          }
+        };
+        const fetchUserPosts = async () => {
+          setPostsLoading(true);
+          try {
+            const res = await api.getUserPosts(profileId);
+            if (res.success && res.data && Array.isArray((res.data as any).posts)) {
+              const transformed = (res.data as any).posts.map(transformApiPost);
+              setUserPosts(transformed);
+            }
+          } catch (e) {
+            console.error("Failed to fetch user posts", e);
+          } finally {
+            setPostsLoading(false);
+          }
+        };
+        fetchProfileData();
+        fetchUserPosts();
+      }
+    }, [profileId])
+  );
   
   const handleConnect = () => {
     if (!id) return;

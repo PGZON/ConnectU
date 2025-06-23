@@ -4,17 +4,17 @@ import { Stack, useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import Button from '@/components/Button';
-import { currentUser } from '@/mocks/users';
+import Avatar from '@/components/Avatar';
 
 export default function EditProfileScreen() {
-  const { updateProfile, isLoading } = useAuthStore();
+  const { user, updateProfile, isLoading } = useAuthStore();
   const [formData, setFormData] = useState({
-    name: currentUser.name,
-    bio: currentUser.bio || '',
-    department: currentUser.department || '',
-    graduationYear: currentUser.graduationYear?.toString() || '',
-    company: currentUser.company || '',
-    position: currentUser.position || '',
+    name: user?.name || '',
+    bio: user?.bio || '',
+    department: user?.department || '',
+    graduationYear: user?.graduationYear ? user.graduationYear.toString() : '',
+    company: user?.company || '',
+    position: user?.position || '',
   });
   const router = useRouter();
 
@@ -52,12 +52,15 @@ export default function EditProfileScreen() {
         }} 
       />
       
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <View style={styles.avatarSection}>
+          <View style={styles.avatarBg}>
+            <Avatar uri={user?.profileImageUrl} size={90} borderWidth={3} />
+          </View>
+          <Text style={styles.userName}>{user?.name}</Text>
+        </View>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Profile Info</Text>
           <View style={styles.formGroup}>
             <Text style={styles.label}>Name</Text>
             <TextInput
@@ -81,9 +84,10 @@ export default function EditProfileScreen() {
               maxLength={300}
             />
           </View>
-          
-          {currentUser.role === 'student' && (
+          <View style={styles.divider} />
+          {user?.role === 'student' && (
             <>
+              <Text style={styles.sectionTitle}>Education</Text>
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Department</Text>
                 <TextInput
@@ -109,8 +113,9 @@ export default function EditProfileScreen() {
             </>
           )}
           
-          {currentUser.role === 'alumni' && (
+          {user?.role === 'alumni' && (
             <>
+              <Text style={styles.sectionTitle}>Work</Text>
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Company</Text>
                 <TextInput
@@ -134,8 +139,8 @@ export default function EditProfileScreen() {
               </View>
             </>
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </ScrollView>
     </>
   );
 }
@@ -146,7 +151,43 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   scrollContent: {
-    padding: 16,
+    padding: 0,
+    paddingBottom: 32,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginTop: 32,
+    marginBottom: 12,
+  },
+  avatarBg: {
+    backgroundColor: Colors.highlight,
+    borderRadius: 60,
+    padding: 8,
+    marginBottom: 8,
+  },
+  userName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  card: {
+    backgroundColor: Colors.card,
+    borderRadius: 18,
+    marginHorizontal: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.primary,
+    marginBottom: 10,
+    marginTop: 8,
   },
   formGroup: {
     marginBottom: 20,
@@ -163,9 +204,16 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   textArea: {
     minHeight: 100,
     textAlignVertical: 'top',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: 16,
   },
 });
