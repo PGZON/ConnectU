@@ -39,9 +39,12 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     
     try {
       const response = await api.getQueries(page, 20);
-      
-      if (response.success && response.data) {
-        const transformedQueries: Query[] = response.data
+
+      // Support both array and object with queries property
+      const queryList = Array.isArray(response.data) ? response.data : response.data?.queries;
+
+      if (response.success && queryList) {
+        const transformedQueries: Query[] = queryList
           .filter((query: any) => {
             const valid = query.student && query.student._id && query.student.name;
             if (!valid) {
@@ -69,6 +72,19 @@ export const useQueryStore = create<QueryState>((set, get) => ({
             } : undefined,
             question: `${query.title}\n\n${query.content}`,
             answer: query.answers?.[0]?.content,
+            answers: query.answers?.map((ans: any) => ({
+              id: ans._id,
+              alumni: ans.alumni && typeof ans.alumni === 'object' ? {
+                id: ans.alumni._id,
+                name: ans.alumni.name,
+                email: ans.alumni.email,
+                role: ans.alumni.role,
+                profileImageUrl: ans.alumni.profileImageUrl,
+              } : undefined,
+              content: ans.content,
+              createdAt: ans.createdAt,
+              isAccepted: ans.isAccepted,
+            })) || [],
             isPublic: query.isPublic,
             createdAt: query.createdAt,
             answeredAt: query.answers?.[0]?.createdAt,
@@ -124,7 +140,6 @@ export const useQueryStore = create<QueryState>((set, get) => ({
   
   askQuery: async (title, content, category, priority = 'medium') => {
     set({ isLoading: true, error: null });
-    
     try {
       const queryData = {
         title,
@@ -133,33 +148,11 @@ export const useQueryStore = create<QueryState>((set, get) => ({
         priority,
         isPublic: true,
       };
-
       const response = await api.createQuery(queryData);
-      
       if (response.success && response.data) {
-        const currentUser = useAuthStore.getState().user;
-        
-        if (currentUser) {
-          const newQuery: Query = {
-            id: response.data._id,
-            studentId: currentUser.id,
-            student: {
-              id: currentUser.id,
-              name: currentUser.name,
-              email: currentUser.email,
-              role: currentUser.role,
-              profileImageUrl: currentUser.profileImageUrl,
-            },
-            question: `${title}\n\n${content}`,
-            isPublic: true,
-            createdAt: response.data.createdAt,
-          };
-          
-          set(state => ({
-            queries: [newQuery, ...state.queries],
-            isLoading: false
-          }));
-        }
+        // Refresh the queries list from backend after creation
+        await get().fetchQueries(1);
+        set({ isLoading: false });
       } else {
         throw new Error(response.message || 'Failed to ask query');
       }

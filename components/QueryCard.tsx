@@ -21,9 +21,9 @@ export default function QueryCard({ query, onAnswer }: QueryCardProps) {
     }
   };
 
-  const handleAlumniPress = () => {
-    if (query.alumni) {
-      router.push(`/profile/${query.alumni.id}`);
+  const handleAlumniPress = (alumniId?: string) => {
+    if (alumniId) {
+      router.push(`/profile/${alumniId}`);
     }
   };
 
@@ -50,19 +50,24 @@ export default function QueryCard({ query, onAnswer }: QueryCardProps) {
         <Text style={styles.questionText}>{query.question}</Text>
       </View>
 
-      {query.answer ? (
+      {query.answers && query.answers.length > 0 ? (
         <View style={styles.answerContainer}>
-          <View style={styles.answerHeader}>
-            <TouchableOpacity onPress={handleAlumniPress} style={styles.userInfo}>
-              <Avatar uri={query.alumni?.profileImageUrl} size={36} />
-              <Text style={styles.name}>{query.alumni?.name}</Text>
-            </TouchableOpacity>
-            {query.answeredAt && (
-              <Text style={styles.timestamp}>{formatTimeAgo(new Date(query.answeredAt))}</Text>
-            )}
-          </View>
-          <Text style={styles.answerLabel}>Answer:</Text>
-          <Text style={styles.answerText}>{query.answer}</Text>
+          <Text style={styles.answerLabel}>Answers:</Text>
+          {query.answers.map((ans) => (
+            <View key={ans.id} style={styles.answerBox}>
+              <View style={styles.answerHeader}>
+                <TouchableOpacity onPress={() => handleAlumniPress(ans.alumni?.id)} style={styles.userInfo}>
+                  <Avatar uri={ans.alumni?.profileImageUrl} size={36} />
+                  <Text style={styles.name}>{ans.alumni?.name}</Text>
+                </TouchableOpacity>
+                <Text style={styles.timestamp}>{formatTimeAgo(new Date(ans.createdAt))}</Text>
+              </View>
+              <Text style={styles.answerText}>{ans.content}</Text>
+              {ans.isAccepted && (
+                <Text style={{ color: Colors.success, fontWeight: 'bold', marginTop: 4 }}>Accepted Answer</Text>
+              )}
+            </View>
+          ))}
         </View>
       ) : (
         <View style={styles.actions}>
@@ -128,7 +133,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   answerLabel: {
     fontSize: 14,
@@ -140,6 +145,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
     lineHeight: 22,
+  },
+  answerBox: {
+    marginBottom: 16,
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   actions: {
     marginTop: 12,

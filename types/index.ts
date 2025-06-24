@@ -39,6 +39,14 @@ export interface Comment {
   createdAt: string;
 }
 
+export interface Answer {
+  id: string;
+  alumni: User;
+  content: string;
+  createdAt: string;
+  isAccepted?: boolean;
+}
+
 export interface Query {
   id: string;
   studentId: string;
@@ -47,6 +55,7 @@ export interface Query {
   alumni?: User;
   question: string;
   answer?: string;
+  answers?: Answer[];
   isPublic: boolean;
   createdAt: string;
   answeredAt?: string;

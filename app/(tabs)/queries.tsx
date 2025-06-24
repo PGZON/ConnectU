@@ -3,7 +3,7 @@ import { StyleSheet, View, FlatList, RefreshControl, ActivityIndicator, Text, To
 import { useQueryStore } from '@/store/queryStore';
 import QueryCard from '@/components/QueryCard';
 import Colors from '@/constants/colors';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/utils/api';
@@ -21,6 +21,13 @@ export default function QueriesScreen() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [results, setResults] = useState<any>(null);
+
+  // Use useFocusEffect to fetch queries whenever the screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchQueries(1);
+    }, [fetchQueries])
+  );
 
   // Fetch active poll on mount
   useEffect(() => {
