@@ -445,11 +445,15 @@ class ApiClient {
   }
 
   async createPost(postData: any): Promise<ApiResponse<any>> {
-    return this.post('/posts', postData);
+    return this.post<any>('/posts', postData);
   }
-  
+
+  async deletePost(postId: string): Promise<ApiResponse<any>> {
+    return this.delete<any>(`/posts/${postId}`);
+  }
+
   async likePost(postId: string): Promise<ApiResponse<any>> {
-    return this.post(`/posts/${postId}/like`);
+    return this.post<any>(`/posts/${postId}/like`);
   }
   
   async addComment(postId: string, content: string): Promise<ApiResponse<any>> {

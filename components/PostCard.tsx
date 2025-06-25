@@ -1,14 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Dimensions, FlatList, Animated, Pressable } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Dimensions, FlatList, Animated, Pressable, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { Heart, MessageCircle, Share2 } from 'lucide-react-native';
+import { Heart, MessageCircle, Share2, Trash2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Post } from '@/types';
 import Colors from '@/constants/colors';
 import Avatar from './Avatar';
 import { formatTimeAgo } from '@/utils/dateUtils';
 import { useAuthStore } from '@/store/authStore';
+import { useFeedStore } from '@/store/feedStore';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface PostCardProps {
@@ -38,6 +39,7 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
   }).current;
 
   const { user: currentUser } = useAuthStore();
+  const { deletePost } = useFeedStore();
 
   React.useEffect(() => {
     if (currentUser) {
@@ -70,6 +72,21 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
     }
   };
 
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this post?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          onPress: () => deletePost(post.id), 
+          style: 'destructive' 
+        },
+      ]
+    );
+  };
+
   const renderMediaItem = ({ item }: { item: any }) => (
     <Image
       source={{ uri: item.url }}
@@ -89,9 +106,16 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
             <Text style={styles.role}>{post.user?.role}</Text>
           </View>
         </TouchableOpacity>
-        {post.likes.length > 10 && (
-          <View style={styles.popularBadge}><Text style={styles.popularBadgeText}>Popular</Text></View>
-        )}
+        <View style={styles.headerActions}>
+          {post.likes.length > 10 && (
+            <View style={styles.popularBadge}><Text style={styles.popularBadgeText}>Popular</Text></View>
+          )}
+          {currentUser?._id === post.user?.id && (
+            <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
+              <Trash2 size={20} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <Text style={styles.caption}>{post.caption}</Text>
@@ -187,6 +211,15 @@ const styles = StyleSheet.create({
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    marginLeft: 12,
+    padding: 4,
   },
   nameContainer: {
     marginLeft: 10,

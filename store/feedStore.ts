@@ -43,6 +43,7 @@ interface FeedState {
   fetchPosts: (page?: number) => Promise<void>;
   likePost: (postId: string) => Promise<void>;
   addComment: (postId: string, text: string) => Promise<void>;
+  deletePost: (postId: string) => Promise<void>;
   createPost: (caption: string, mediaUris?: string[], mediaType?: 'image' | 'video', onProgress?: (progress: number) => void) => Promise<void>;
   refreshPosts: () => Promise<void>;
 }
@@ -114,6 +115,23 @@ export const useFeedStore = create<FeedState>((set, get) => ({
 
   refreshPosts: async () => {
     await get().fetchPosts(1);
+  },
+  
+  deletePost: async (postId) => {
+    try {
+      const response = await api.deletePost(postId);
+      if (response.success) {
+        set((state) => ({
+          posts: state.posts.filter((post) => post.id !== postId),
+        }));
+      } else {
+        throw new Error(response.message || 'Failed to delete post');
+      }
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to delete post' 
+      });
+    }
   },
   
   likePost: async (postId) => {

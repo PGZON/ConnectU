@@ -82,9 +82,13 @@ const uploadFile = async (file, folder = 'connectu/files') => {
 };
 
 // Delete file from Cloudinary
-const deleteFile = async (publicId) => {
+const deleteFile = async (publicId, resourceType = 'image') => {
   try {
-    const result = await cloudinary.uploader.destroy(publicId);
+    console.log(`Attempting to delete from Cloudinary: publicId=${publicId}, resourceType=${resourceType}`);
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: resourceType,
+    });
+    console.log('Cloudinary deletion result:', result);
     return result;
   } catch (error) {
     console.error('File deletion error:', error);

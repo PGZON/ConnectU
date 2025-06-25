@@ -1,6 +1,6 @@
 const Post = require('../models/Post');
 const { successResponse, notFoundResponse, badRequestResponse, forbiddenResponse } = require('../utils/responseHandler');
-const { uploadImage, uploadVideo } = require('../config/cloudinary');
+const { uploadImage, uploadVideo, deleteFile } = require('../config/cloudinary');
 
 // @desc    Create a new post
 // @route   POST /api/posts
@@ -156,10 +156,30 @@ const deletePost = async (req, res) => {
       return notFoundResponse(res, 'Post not found');
     }
 
+    // Check if user is the author
+    if (post.author.toString() !== req.user._id.toString()) {
+      return forbiddenResponse(res, 'User not authorized to delete this post');
+    }
+
+    // Delete media from Cloudinary
+    if (post.media && post.media.length > 0) {
+      console.log(`Preparing to delete ${post.media.length} media item(s) for post ${post._id}.`);
+      for (const mediaItem of post.media) {
+        if (mediaItem.publicId) {
+          console.log(`Deleting media: public_id=${mediaItem.publicId}, type=${mediaItem.type}`);
+          // The resource type for Cloudinary videos is 'video', for images it's 'image'.
+          await deleteFile(mediaItem.publicId, mediaItem.type);
+        } else {
+          console.log(`Skipping media deletion for item without publicId: ${mediaItem.url}`);
+        }
+      }
+    }
+
     await Post.deleteOne({ _id: req.params.id });
+    console.log(`Post ${post._id} deleted from database successfully.`);
     return successResponse(res, null, 'Post deleted successfully');
   } catch (error) {
-    console.error('Delete post error:', error);
+    console.error(`Error deleting post ${req.params.id}:`, error);
     return badRequestResponse(res, error.message);
   }
 };
