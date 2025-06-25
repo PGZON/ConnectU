@@ -13,6 +13,7 @@ const {
   getAllUsers
 } = require('../controllers/userController');
 const multer = require('multer');
+const User = require('../models/User');
 
 const storage = multer.diskStorage({
   destination: 'uploads/',
@@ -43,5 +44,17 @@ router.get('/all', protect, getAllUsers);
 
 // Admin routes
 router.delete('/:id', protect, requireAdmin, deleteUser);
+
+router.put('/:id/activate', protect, requireAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    user.isActive = true;
+    await user.save();
+    res.status(200).json({ success: true, message: 'User activated successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to activate user', error: error.message });
+  }
+});
 
 module.exports = router; 

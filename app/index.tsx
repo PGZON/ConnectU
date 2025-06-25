@@ -12,9 +12,15 @@ export default function Index() {
     
     // Only redirect if we're not loading and we have a definitive auth state
     if (!isLoading) {
-      if (isAuthenticated) {
-        console.log('Index - redirecting to tabs');
-        router.replace('/(tabs)');
+      const user = useAuthStore.getState().user;
+      if (isAuthenticated && user) {
+        if (user.role === 'admin' && user.isVerified) {
+          console.log('Index - redirecting to admin dashboard');
+          router.replace('/admin/dashboard');
+        } else {
+          console.log('Index - redirecting to tabs');
+          router.replace('/(tabs)');
+        }
       } else {
         console.log('Index - redirecting to login');
         router.replace('/login');

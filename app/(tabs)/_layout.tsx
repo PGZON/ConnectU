@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Image } from 'expo-image';
-import { MessageCircle, Home, Users, User, BookOpen } from 'lucide-react-native';
+import { MessageCircle, Home, Users, User, BookOpen, Shield } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useMessageStore } from '@/store/messageStore';
 import useConnectionStore from '@/store/connectionStore';
@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 import { Platform, Text, View, ActivityIndicator, StyleSheet } from 'react-native';
 import AnimatedLogo from '@/components/AnimatedLogo';
 import { useFonts } from 'expo-font';
+import { useRouter } from 'expo-router';
 
 const ProfileTabIcon = ({ color, size }: { color: string, size: number }) => {
   const { user } = useAuthStore();
@@ -28,6 +29,7 @@ export default function TabLayout() {
   const { user, isLoading } = useAuthStore();
   const { fetchConnections, receivedRequests } = useConnectionStore();
   const { getTotalUnreadCount } = useMessageStore();
+  const router = useRouter();
   
   const [fontsLoaded] = useFonts({
     'Pacifico-Regular': require('../../assets/fonts/Pacifico-Regular.ttf'),
@@ -43,6 +45,13 @@ export default function TabLayout() {
       fetchConnections();
     }
   }, [user, fetchConnections]);
+
+  if (user?.role === 'admin') {
+    useEffect(() => {
+      router.replace('/admin/dashboard');
+    }, [router]);
+    return null;
+  }
 
   if (isLoading || !fontsLoaded) {
     return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator /></View>;

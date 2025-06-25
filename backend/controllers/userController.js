@@ -4,6 +4,7 @@ const { uploadImage, deleteFile } = require('../config/cloudinary');
 const Connection = require('../models/Connection');
 const Post = require('../models/Post');
 const Query = require('../models/Query');
+const Log = require('../models/Log');
 
 // @desc    Get user profile by ID
 // @route   GET /api/users/profile/:id
@@ -165,15 +166,30 @@ const searchUsers = async (req, res) => {
 const deleteUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
-    
     if (!user) {
       return notFoundResponse(res, 'User not found');
     }
-
+    if (req.query.hard === 'true') {
+      await User.deleteOne({ _id: req.params.id });
+      await Log.create({
+        type: 'user_delete',
+        actor: req.user.email,
+        target: user.email,
+        message: `Admin ${req.user.email} permanently deleted user ${user.email} (${user._id})`,
+        meta: { userId: user._id }
+      });
+      return successResponse(res, null, 'User permanently deleted');
+    }
     // Soft delete - mark as inactive
     user.isActive = false;
     await user.save();
-
+    await Log.create({
+      type: 'user_deactivate',
+      actor: req.user.email,
+      target: user.email,
+      message: `Admin ${req.user.email} deactivated user ${user.email} (${user._id})`,
+      meta: { userId: user._id }
+    });
     return successResponse(res, null, 'User deleted successfully');
   } catch (error) {
     console.error('Delete user error:', error);

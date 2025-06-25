@@ -36,8 +36,8 @@ const validateRegistration = [
     .withMessage('Password must be at least 6 characters long'),
   
   require('express-validator').body('role')
-    .isIn(['student', 'alumni'])
-    .withMessage('Role must be either student or alumni'),
+    .isIn(['student', 'alumni', 'admin'])
+    .withMessage('Role must be either student, alumni, or admin'),
   
   handleValidationErrors
 ];

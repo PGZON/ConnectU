@@ -43,7 +43,11 @@ export default function RootLayout() {
 
       // If user is on an auth screen, redirect them away
       if (inAuthScreens) {
-        router.replace('/(tabs)');
+        if (user.role === 'admin' && user.isVerified) {
+          router.replace('/admin/dashboard');
+        } else {
+          router.replace('/(tabs)');
+        }
       }
     } else {
       // User is not logged in

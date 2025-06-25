@@ -5,6 +5,9 @@ const { successResponse, notFoundResponse, badRequestResponse, forbiddenResponse
 // @route   POST /api/queries
 // @access  Private/Student
 const createQuery = async (req, res) => {
+  if (req.user.role === 'admin') {
+    return res.status(403).json({ success: false, message: 'Admins cannot create queries.' });
+  }
   try {
     const queryData = {
       student: req.user._id,

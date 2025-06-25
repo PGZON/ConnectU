@@ -82,6 +82,14 @@ export default function CreatePostScreen() {
   const remainingChars = MAX_CAPTION_LENGTH - caption.length;
   const isPostDisabled = (caption.trim() === '' && images.length === 0) || isLoading;
 
+  if (user?.role === 'admin') {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background }}>
+        <Text style={{ color: Colors.text, fontSize: 18, fontWeight: 'bold' }}>Admins cannot create posts.</Text>
+      </View>
+    );
+  }
+
   return (
     <>
       <Stack.Screen options={{ title: 'Create Post' }} />

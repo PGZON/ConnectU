@@ -6,6 +6,9 @@ const { uploadImage, uploadVideo, deleteFile } = require('../config/cloudinary')
 // @route   POST /api/posts
 // @access  Private
 const createPost = async (req, res) => {
+  if (req.user.role === 'admin') {
+    return res.status(403).json({ success: false, message: 'Admins cannot create posts.' });
+  }
   try {
     const { caption } = req.body;
     if (caption && caption.length > 1000) {

@@ -87,6 +87,7 @@ export const useAuthStore = create<AuthState>()(
             graduationYear: userData.graduationYear || userData.batch,
             company: userData.currentCompany || userData.company,
             position: userData.designation || userData.position,
+            isVerified: userData.isVerified,
           };
           
           console.log('AuthStore: Setting tokens and user data');
@@ -135,6 +136,7 @@ export const useAuthStore = create<AuthState>()(
               role: userData.role,
               profileImageUrl: userData.profileImageUrl,
               bio: userData.bio,
+              isVerified: userData.isVerified,
             };
             
             await get().setTokens(accessToken, refreshToken);
@@ -192,6 +194,7 @@ export const useAuthStore = create<AuthState>()(
               graduationYear: userData.graduationYear || userData.batch,
               company: userData.currentCompany || userData.company,
               position: userData.designation || userData.position,
+              isVerified: userData.isVerified,
             };
             
             set({ user, isAuthenticated: true, isLoading: false, error: null });
@@ -230,6 +233,7 @@ export const useAuthStore = create<AuthState>()(
               graduationYear: updatedUserData.graduationYear || updatedUserData.batch,
               company: updatedUserData.currentCompany || updatedUserData.company,
               position: updatedUserData.designation || updatedUserData.position,
+              isVerified: updatedUserData.isVerified,
             };
             
             set({ user: updatedUser, isLoading: false });

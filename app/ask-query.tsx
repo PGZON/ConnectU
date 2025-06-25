@@ -101,6 +101,14 @@ export default function AskQueryScreen() {
     transform: [{ translateX: field === 'tags' ? shakeAnim.value : 0 }],
   }));
 
+  if (user?.role === 'admin') {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background }}>
+        <Text style={{ color: Colors.text, fontSize: 18, fontWeight: 'bold' }}>Admins cannot create queries.</Text>
+      </View>
+    );
+  }
+
   return (
     <>
       <Stack.Screen 

@@ -158,6 +158,11 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
           </View>
+          <View style={{ marginTop: 24, alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => router.push('/admin/login')}>
+              <Text style={{ color: Colors.primary, fontWeight: 'bold', fontSize: 16 }}>Admin Login</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
       {showForgot && (
