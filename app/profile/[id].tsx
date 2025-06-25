@@ -226,20 +226,42 @@ export default function UserProfileScreen() {
         aspect: [3, 1],
         quality: 0.8,
       });
-      if (result.canceled) return;
+      if (result.canceled) {
+        console.log('User canceled image picking.');
+        return;
+      }
       setUploading(true);
       const asset = result.assets[0];
+      
+      console.log('--- DEBUG: Preparing to Upload Cover Image ---');
+      console.log('Asset URI:', asset.uri);
+      console.log('Asset Type:', asset.type);
+      console.log('Asset FileName:', asset.fileName);
+      
       const formData = new FormData();
       formData.append('file', {
         uri: asset.uri,
         name: asset.fileName || 'cover.jpg',
         type: asset.type || 'image/jpeg',
       });
+      
+      console.log('--- DEBUG: Sending request to api.uploadCoverImage ---');
       const uploadRes = await api.uploadCoverImage(formData);
-      if (!uploadRes.success) throw new Error(uploadRes.message || 'Failed to upload image');
+      
+      if (!uploadRes.success) {
+        throw new Error(uploadRes.message || 'Failed to upload image');
+      }
+      
       await fetchProfileData();
       Alert.alert('Success', 'Cover image updated!');
     } catch (err: any) {
+      console.error('--- DEBUG: Cover Image Upload FAILED ---');
+      console.error('Full Error Object:', err);
+      // Also log specific properties if they exist
+      if (err.name) console.error('Error Name:', err.name);
+      if (err.message) console.error('Error Message:', err.message);
+      if (err.stack) console.error('Error Stack:', err.stack);
+      
       Alert.alert('Error', err.message || 'Failed to update cover image');
     } finally {
       setUploading(false);

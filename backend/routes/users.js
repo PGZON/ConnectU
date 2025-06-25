@@ -35,7 +35,10 @@ router.put('/profile/:id', protect, requireVerification, validateProfileUpdate, 
 router.get('/role/:role', protect, validatePagination, getUsersByRole);
 router.get('/search', protect, searchUsers);
 router.post('/upload/profile-image', protect, upload.single('file'), uploadProfileImage);
-router.post('/upload/cover-image', protect, uploadCoverImage);
+
+// Restore protect middleware now that the root cause is being fixed in the client
+router.post('/upload/cover-image', protect, upload.single('file'), uploadCoverImage);
+
 router.get('/all', protect, getAllUsers);
 
 // Admin routes

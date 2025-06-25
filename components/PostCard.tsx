@@ -98,13 +98,44 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
 
       {post.media && post.media.length > 0 && (
         <View style={styles.mediaContainer}>
-          <Image
-            source={{ uri: post.media[0].url }}
-            style={styles.media}
-            contentFit="cover"
-            transition={300}
-          />
-          <LinearGradient colors={["rgba(0,0,0,0.15)", "rgba(0,0,0,0.35)"]} style={styles.mediaOverlay} />
+          {post.media.length === 1 ? (
+            <>
+              <Image
+                source={{ uri: post.media[0].url }}
+                style={styles.media}
+                contentFit="cover"
+                transition={300}
+              />
+              <LinearGradient colors={["rgba(0,0,0,0.15)", "rgba(0,0,0,0.35)"]} style={styles.mediaOverlay} />
+            </>
+          ) : (
+            <>
+              <FlatList
+                ref={flatListRef}
+                data={post.media}
+                renderItem={renderMediaItem}
+                keyExtractor={(item) => item.url}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onViewableItemsChanged={onViewableItemsChanged}
+                viewabilityConfig={viewabilityConfig}
+                style={{ width: MEDIA_SECTION_WIDTH }}
+                contentContainerStyle={{ width: MEDIA_SECTION_WIDTH * post.media.length }}
+              />
+              <View style={styles.pagination}>
+                {post.media.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.paginationDot,
+                      index === activeIndex ? styles.paginationDotActive : {},
+                    ]}
+                  />
+                ))}
+              </View>
+            </>
+          )}
         </View>
       )}
 

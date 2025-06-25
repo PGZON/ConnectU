@@ -7,7 +7,7 @@ import useConnectionStore from '@/store/connectionStore';
 import { useQueryStore } from '@/store/queryStore';
 import Colors from '@/constants/colors';
 import Button from '@/components/Button';
-import { Camera, LogOut, Edit2, CheckCircle, XCircle } from 'lucide-react-native';
+import { Camera, LogOut, Edit2, CheckCircle, XCircle, Users, FileText, HelpCircle, Edit } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { api } from '@/utils/api';
 import PostCard from '@/components/PostCard';
@@ -19,6 +19,7 @@ import { User } from '@/types';
 import { Post } from '@/types';
 import { useFeedStore } from '@/store/feedStore';
 import { useMessageStore } from '@/store/messageStore';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function ProfileScreen() {
   const { user, isLoading: authLoading, checkAuthState, logout } = useAuthStore();
@@ -187,273 +188,193 @@ export default function ProfileScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} tintColor={Colors.primary} />}
     >
-      <View style={styles.header}>
-        <View style={styles.profileImageContainer}>
+      <LinearGradient
+        colors={[Colors.primary, Colors.secondary]}
+        style={styles.header}
+      >
+        <TouchableOpacity onPress={handlePickImage} style={styles.profileImageContainer}>
           <Image
             source={{ uri: user.profileImageUrl }}
             style={styles.profileImage}
             contentFit="cover"
           />
-          {uploading && (
-            <View style={styles.uploadOverlay}>
-              <Progress.Circle
-                size={80}
-                progress={progress / 100}
-                showsText={true}
-                formatText={() => `${progress}%`}
-                color={Colors.primary}
-                unfilledColor={'#e0e0e0'}
-                borderWidth={0}
-                thickness={6}
-                textStyle={{ fontWeight: 'bold', color: Colors.primary, fontSize: 18 }}
-              />
-            </View>
-          )}
-          <TouchableOpacity 
-            style={styles.cameraButton}
-            onPress={handlePickImage}
-            disabled={uploading}
-          >
-            <Camera size={18} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+          <View style={styles.cameraIcon}>
+            <Camera size={18} color="#fff" />
+          </View>
+        </TouchableOpacity>
         <Text style={styles.name}>{user.name}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-          {user.isVerified ? (
-            <>
-              <CheckCircle size={18} color={Colors.success} style={{ marginRight: 4 }} />
-              <Text style={styles.verifiedText}>Verified</Text>
-            </>
+        <Text style={styles.role}>{user.role.charAt(0).toUpperCase() + user.role.slice(1)}</Text>
+      </LinearGradient>
+
+      <View style={styles.content}>
+        {!user.isVerified && (
+          <View style={styles.verificationContainer}>
+            <XCircle size={20} color={Colors.danger} />
+            <Text style={styles.verificationText}>Not Verified</Text>
+            <Button title="Verify Now" onPress={handleVerify} size="small" loading={verificationLoading} />
+          </View>
+        )}
+
+        <View style={styles.statsContainer}>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{connectionsCount}</Text>
+            <Text style={styles.statLabel}>Connections</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{postsCount}</Text>
+            <Text style={styles.statLabel}>Posts</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{queriesCount}</Text>
+            <Text style={styles.statLabel}>Queries</Text>
+          </View>
+        </View>
+
+        <View style={styles.bioContainer}>
+          <Text style={styles.bioTitle}>Bio</Text>
+          <Text style={styles.bioText}>{user.bio || 'No bio added yet.'}</Text>
+        </View>
+
+        <View style={styles.actionsContainer}>
+          <Button title="Edit Profile" onPress={handleEditProfile} icon={<Edit size={16} color="#fff" />} />
+          <Button title="Logout" onPress={handleLogout} variant="danger" icon={<LogOut size={16} color="#fff" />} />
+        </View>
+
+        <View style={styles.postsSection}>
+          <Text style={styles.postsTitle}>My Posts</Text>
+          {postsLoading ? (
+            <ActivityIndicator style={{ marginTop: 20 }} color={Colors.primary} />
+          ) : posts.length > 0 ? (
+            posts.map(post => <PostCard key={post.id} post={post} />)
           ) : (
-            <>
-              <XCircle size={18} color={Colors.error} style={{ marginRight: 4 }} />
-              <Text style={styles.notVerifiedText}>Not Verified</Text>
-              <Button
-                title={verificationLoading ? 'Verifying...' : 'Verify Now'}
-                onPress={handleVerify}
-                disabled={verificationLoading}
-                style={{ marginLeft: 8 }}
-              />
-            </>
+            <Text style={styles.noPostsText}>You haven't made any posts yet.</Text>
           )}
         </View>
-        {verificationMessage && (
-          <Text style={{ color: user.isVerified ? Colors.success : Colors.error, marginBottom: 8 }}>{verificationMessage}</Text>
-        )}
-        <Text style={styles.role}>{user.role}</Text>
-        {user.role === 'student' && (
-          <Text style={styles.details}>
-            {user.department}, Class of {user.graduationYear}
-          </Text>
-        )}
-        {user.role === 'alumni' && (
-          <Text style={styles.details}>
-            {user.position} at {user.company}
-          </Text>
-        )}
-      </View>
-      <View style={styles.bioSection}>
-        <Text style={styles.sectionTitle}>Bio</Text>
-        <Text style={styles.bioText}>{user.bio || 'No bio added yet.'}</Text>
-      </View>
-      <View style={styles.actionsContainer}>
-        <Button
-          title="Edit Profile"
-          onPress={handleEditProfile}
-          variant="outline"
-          fullWidth
-          style={styles.actionButton}
-          textStyle={styles.actionButtonText}
-        />
-        <Button
-          title="Logout"
-          onPress={handleLogout}
-          variant="outline"
-          fullWidth
-          style={StyleSheet.flatten([styles.actionButton, styles.logoutButton])}
-          textStyle={StyleSheet.flatten([styles.actionButtonText, styles.logoutButtonText])}
-        />
-      </View>
-      <View style={styles.statsSection}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{connectionsCount}</Text>
-          <Text style={styles.statLabel}>Connections</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{postsCount}</Text>
-          <Text style={styles.statLabel}>Posts</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{queriesCount}</Text>
-          <Text style={styles.statLabel}>Queries</Text>
-        </View>
-      </View>
-      <View style={styles.postsSection}>
-        <Text style={styles.sectionTitle}>My Posts</Text>
-        {postsLoading ? (
-          <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 16 }} />
-        ) : posts.length === 0 ? (
-          <Text style={{ textAlign: 'center', color: Colors.textSecondary, marginTop: 16 }}>No posts yet.</Text>
-        ) : (
-          <FlatList
-            data={posts}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => <PostCard post={item} />}
-            scrollEnabled={false}
-            contentContainerStyle={{ paddingBottom: 24 }}
-          />
-        )}
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background,
-  },
   container: {
     flex: 1,
     backgroundColor: Colors.background,
   },
   header: {
+    paddingTop: 60,
+    paddingBottom: 20,
     alignItems: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-    backgroundColor: Colors.card,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
   },
   profileImageContainer: {
     position: 'relative',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: Colors.border,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: '#fff',
   },
-  cameraButton: {
+  cameraIcon: {
     position: 'absolute',
     bottom: 0,
     right: 0,
     backgroundColor: Colors.primary,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: Colors.card,
+    padding: 8,
+    borderRadius: 20,
   },
   name: {
     fontSize: 24,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 4,
+    fontWeight: 'bold',
+    color: '#fff',
   },
   role: {
     fontSize: 16,
-    color: Colors.textSecondary,
-    textTransform: 'capitalize',
-    marginBottom: 8,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 4,
   },
-  details: {
-    fontSize: 14,
-    color: Colors.text,
-  },
-  bioSection: {
+  content: {
     padding: 16,
-    backgroundColor: Colors.card,
-    marginTop: 16,
-    marginHorizontal: 16,
-    borderRadius: 12,
   },
-  sectionTitle: {
+  verificationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    justifyContent: 'space-between',
+  },
+  verificationText: {
+    fontSize: 16,
+    color: Colors.text,
+    marginLeft: 8,
+    flex: 1,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: Colors.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  statBox: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.primary,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+  bioContainer: {
+    backgroundColor: Colors.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  bioTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: Colors.text,
     marginBottom: 8,
   },
   bioText: {
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.text,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   actionsContainer: {
-    padding: 16,
-  },
-  actionButton: {
-    marginBottom: 12,
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionButtonText: {
-    fontWeight: '600',
-  },
-  logoutButton: {
-    borderColor: Colors.error,
-  },
-  logoutButtonText: {
-    color: Colors.error,
-  },
-  statsSection: {
-    flexDirection: 'row',
-    backgroundColor: Colors.card,
-    marginHorizontal: 16,
-    marginBottom: 24,
-    borderRadius: 12,
-    padding: 16,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.primary,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: Colors.border,
-    marginHorizontal: 8,
-  },
-  verifiedText: {
-    color: Colors.success,
-    fontWeight: '600',
-    marginRight: 8,
-  },
-  notVerifiedText: {
-    color: Colors.error,
-    fontWeight: '600',
-    marginRight: 8,
+    justifyContent: 'space-around',
+    gap: 16,
+    marginBottom: 20,
   },
   postsSection: {
-    marginTop: 24,
-    marginHorizontal: 16,
+    marginTop: 10,
   },
-  uploadOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+  postsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 10,
+  },
+  noPostsText: {
+    textAlign: 'center',
+    color: Colors.textSecondary,
+    marginTop: 20,
+    fontSize: 16,
+  },
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: Colors.background,
   },
 });

@@ -80,6 +80,12 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Test endpoint for debugging uploads
+app.post('/api/test-upload', (req, res) => {
+  console.log('✅ /api/test-upload endpoint was hit successfully!');
+  res.status(200).json({ success: true, message: 'Test endpoint reached' });
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -180,9 +186,10 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 5000;
+const HOST = '0.0.0.0'; // Listen on all network interfaces
 
-server.listen(PORT, () => {
-  console.log(`🚀 ConnectU Backend server running on port ${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`🚀 ConnectU Backend server running on http://${HOST}:${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
 });
