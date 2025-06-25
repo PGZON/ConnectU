@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Dimensions, FlatList } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Dimensions, FlatList, Animated, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Heart, MessageCircle, Share2 } from 'lucide-react-native';
@@ -9,6 +9,7 @@ import Colors from '@/constants/colors';
 import Avatar from './Avatar';
 import { formatTimeAgo } from '@/utils/dateUtils';
 import { useAuthStore } from '@/store/authStore';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface PostCardProps {
   post: Post;
@@ -24,6 +25,7 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
   const [isLiked, setIsLiked] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
+  const [scaleAnim] = useState(new Animated.Value(1));
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
@@ -44,6 +46,10 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
   }, [post.likes, currentUser]);
 
   const handleLike = () => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, { toValue: 1.2, duration: 120, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 1, duration: 120, useNativeDriver: true })
+    ]).start();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (onLike) {
       onLike(post.id);
@@ -74,7 +80,7 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
   );
 
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.container, { transform: [{ scale: scaleAnim }] }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={handleProfilePress} style={styles.userInfo}>
           <Avatar uri={post.user?.profileImageUrl} size={40} />
@@ -83,68 +89,43 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
             <Text style={styles.role}>{post.user?.role}</Text>
           </View>
         </TouchableOpacity>
+        {post.likes.length > 10 && (
+          <View style={styles.popularBadge}><Text style={styles.popularBadgeText}>Popular</Text></View>
+        )}
       </View>
 
       <Text style={styles.caption}>{post.caption}</Text>
 
       {post.media && post.media.length > 0 && (
         <View style={styles.mediaContainer}>
-          {post.media.length === 1 ? (
-            <Image
-              source={{ uri: post.media[0].url }}
-              style={styles.media}
-              contentFit="cover"
-              transition={300}
-            />
-          ) : (
-            <>
-              <FlatList
-                ref={flatListRef}
-                data={post.media}
-                renderItem={renderMediaItem}
-                keyExtractor={(item) => item.url}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onViewableItemsChanged={onViewableItemsChanged}
-                viewabilityConfig={viewabilityConfig}
-                style={{ width: MEDIA_SECTION_WIDTH }}
-                contentContainerStyle={{ width: MEDIA_SECTION_WIDTH * post.media.length }}
-              />
-              <View style={styles.pagination}>
-                {post.media.map((_, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.paginationDot,
-                      index === activeIndex ? styles.paginationDotActive : {},
-                    ]}
-                  />
-                ))}
-              </View>
-            </>
-          )}
+          <Image
+            source={{ uri: post.media[0].url }}
+            style={styles.media}
+            contentFit="cover"
+            transition={300}
+          />
+          <LinearGradient colors={["rgba(0,0,0,0.15)", "rgba(0,0,0,0.35)"]} style={styles.mediaOverlay} />
         </View>
       )}
 
       <View style={styles.actions}>
-        <TouchableOpacity onPress={handleLike} style={styles.actionButton}>
+        <Pressable onPress={handleLike} style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed] }>
           <Heart
             size={22}
             color={isLiked ? Colors.secondary : Colors.textSecondary}
             fill={isLiked ? Colors.secondary : 'none'}
           />
           <Text style={styles.actionText}>{post.likes.length}</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity onPress={handleComment} style={styles.actionButton}>
+        <Pressable onPress={handleComment} style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed] }>
           <MessageCircle size={22} color={Colors.textSecondary} />
           <Text style={styles.actionText}>{post.comments.length}</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity style={styles.actionButton}>
+        <Pressable style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed] }>
           <Share2 size={22} color={Colors.textSecondary} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {post.comments.length > 0 && (
@@ -155,7 +136,7 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
       )}
 
       <Text style={styles.timestamp}>{formatTimeAgo(new Date(post.createdAt))}</Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -259,5 +240,27 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     fontSize: 12,
     color: Colors.textSecondary,
+  },
+  popularBadge: {
+    backgroundColor: Colors.secondary,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    alignSelf: 'flex-start',
+    marginLeft: 8,
+  },
+  popularBadgeText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  mediaOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 0,
+  },
+  actionButtonPressed: {
+    backgroundColor: Colors.background,
+    borderRadius: 20,
+    opacity: 0.7,
   },
 });

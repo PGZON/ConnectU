@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, Alert } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, Alert, Animated } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import useConnectionStore from '@/store/connectionStore';
@@ -7,12 +7,13 @@ import { useAuthStore } from '@/store/authStore';
 import { useFeedStore, transformApiPost } from '@/store/feedStore';
 import Colors from '@/constants/colors';
 import Button from '@/components/Button';
-import { MessageCircle, CheckCircle, XCircle, Camera } from 'lucide-react-native';
+import { MessageCircle, CheckCircle, XCircle, Camera, User, Briefcase, GraduationCap, Users, FileText, HelpCircle, Plus } from 'lucide-react-native';
 import { api } from '@/utils/api';
 import PostCard from '@/components/PostCard';
 import { Post } from '@/types';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function UserProfileScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
@@ -32,6 +33,7 @@ export default function UserProfileScreen() {
   
   const { likePost } = useFeedStore();
   const [uploading, setUploading] = useState(false);
+  const [profileAnim] = useState(new Animated.Value(0));
 
   useEffect(() => {
     let isMounted = true;
@@ -126,6 +128,14 @@ export default function UserProfileScreen() {
     }, [profileId])
   );
   
+  useEffect(() => {
+    Animated.timing(profileAnim, {
+      toValue: 1,
+      duration: 700,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+  
   const handleConnect = () => {
     if (!id) return;
     sendConnectionRequest(id);
@@ -200,134 +210,79 @@ export default function UserProfileScreen() {
   );
 
   const ListHeader = () => (
-    <>
-      <View style={styles.header}>
-        <View style={{ position: 'relative' }}>
-          <Image
-            source={{ uri: user.profileImageUrl }}
-            style={styles.profileImage}
-            contentFit="cover"
-          />
-          {profileId === authUser?._id && (
-            <View style={styles.cameraIconContainer}>
-              <TouchableOpacity onPress={handleProfileImageChange} disabled={uploading}>
-                {uploading ? (
-                  <ActivityIndicator size={24} color="#fff" />
-                ) : (
-                  <Camera size={24} color="#fff" />
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
+    <Animated.View style={{ opacity: profileAnim, transform: [{ scale: profileAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) }] }}>
+      <LinearGradient colors={[Colors.primary, Colors.secondary]} style={styles.gradientHeader}>
+        <View style={styles.headerContent}>
+          <View style={styles.profileImageWrapper}>
+            <Image
+              source={{ uri: user.profileImageUrl }}
+              style={styles.profileImage}
+              contentFit="cover"
+            />
+            {user.isVerified && (
+              <View style={styles.verifiedBadge}>
+                <CheckCircle size={20} color="#fff" />
+              </View>
+            )}
+            {profileId === authUser?._id && (
+              <View style={styles.cameraIconContainer}>
+                <TouchableOpacity onPress={handleProfileImageChange} disabled={uploading}>
+                  {uploading ? (
+                    <ActivityIndicator size={24} color="#fff" />
+                  ) : (
+                    <Camera size={24} color="#fff" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+          <Text style={styles.name}>{user.name}</Text>
+          <Text style={styles.bioBelowName}>{user.bio || 'No bio added yet.'}</Text>
+          <Text style={styles.role}>{user.role}</Text>
         </View>
-        
-        <Text style={styles.name}>{user.name}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-          {user.isVerified ? (
+        <View style={styles.statsRowNew}>
+          <View style={styles.statPill}><Users size={18} color={Colors.primary} /><Text style={styles.statNumber}>{user.connectionsCount ?? 0}</Text><Text style={styles.statLabel}>Connections</Text></View>
+          <View style={styles.statPill}><FileText size={18} color={Colors.primary} /><Text style={styles.statNumber}>{userPosts.length}</Text><Text style={styles.statLabel}>Posts</Text></View>
+          <View style={styles.statPill}><HelpCircle size={18} color={Colors.primary} /><Text style={styles.statNumber}>{user.queriesCount ?? 0}</Text><Text style={styles.statLabel}>Queries</Text></View>
+        </View>
+        <View style={styles.actionsContainerNew}>
+          {profileId === authUser?._id ? (
             <>
-              <CheckCircle size={18} color={Colors.success} style={{ marginRight: 4 }} />
-              <Text style={styles.verifiedText}>Verified</Text>
+              <Button title="Edit Profile" onPress={() => router.push('/edit-profile')} style={styles.actionButtonNew} />
+              <Button title="Logout" onPress={() => { useAuthStore.getState().logout(); router.replace('/login'); }} variant="danger" style={styles.actionButtonNew} />
             </>
           ) : (
             <>
-              <XCircle size={18} color={Colors.error} style={{ marginRight: 4 }} />
-              <Text style={styles.notVerifiedText}>Not Verified</Text>
+              {connectionStatus === 'none' && (
+                <Button title="Connect" onPress={handleConnect} variant="primary" style={styles.actionButtonNew} />
+              )}
+              {connectionStatus === 'pending' && (
+                <Button title="Request Pending" disabled={true} style={styles.actionButtonNew} />
+              )}
+              {connectionStatus === 'accepted' && (
+                <Button title="Message" onPress={handleMessage} variant="primary" style={styles.actionButtonNew} icon={<MessageCircle size={16} color="#FFFFFF" style={{ marginRight: 8 }} />} />
+              )}
             </>
           )}
         </View>
-        <Text style={styles.role}>{user.role}</Text>
-        
-        {user.role === 'student' && (
-          <Text style={styles.details}>
-            {user.department}, Class of {user.graduationYear}
-          </Text>
-        )}
-        
-        {user.role === 'alumni' && (
-          <Text style={styles.details}>
-            {user.position} at {user.company}
-          </Text>
-        )}
-        
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{user.connectionsCount ?? 0}</Text>
-            <Text style={styles.statLabel}>Connections</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{userPosts.length}</Text>
-            <Text style={styles.statLabel}>Posts</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{user.queriesCount ?? 0}</Text>
-            <Text style={styles.statLabel}>Queries</Text>
-          </View>
-        </View>
-        
-        {profileId === authUser?._id ? (
-          <>
-            <Button title="Edit Profile" onPress={() => router.push('/edit-profile')} style={{ marginTop: 12 }} />
-            <Button title="Logout" onPress={() => { useAuthStore.getState().logout(); router.replace('/login'); }} variant="danger" style={{ marginTop: 8 }} />
-          </>
-        ) : (
-          <View style={styles.actionsContainer}>
-            {connectionStatus === 'none' && (
-              <Button
-                title="Connect"
-                onPress={handleConnect}
-                variant="primary"
-                style={styles.actionButton}
-              />
-            )}
-            
-            {connectionStatus === 'pending' && (
-              <Button
-                title="Request Pending"
-                disabled={true}
-                style={styles.actionButton}
-              />
-            )}
-            
-            {connectionStatus === 'accepted' && (
-              <Button
-                title="Message"
-                onPress={handleMessage}
-                variant="primary"
-                style={styles.actionButton}
-                icon={<MessageCircle size={16} color="#FFFFFF" style={{ marginRight: 8 }} />}
-              />
-            )}
-          </View>
-        )}
-      </View>
-      
-      <View style={styles.bioSection}>
-        <Text style={styles.sectionTitle}>Bio</Text>
-        <Text style={styles.bioText}>{user.bio || 'No bio added yet.'}</Text>
-      </View>
-      
+      </LinearGradient>
       {user.role === 'alumni' && user.company && (
-        <View style={styles.experienceSection}>
-          <Text style={styles.sectionTitle}>Experience</Text>
-          <View style={styles.experienceItem}>
-            <Text style={styles.companyName}>{user.company}</Text>
-            <Text style={styles.position}>{user.position}</Text>
-          </View>
+        <View style={styles.cardSection}>
+          <Text style={styles.sectionTitle}><Briefcase size={18} color={Colors.primary} />  Experience</Text>
+          <Text style={styles.companyName}>{user.company}</Text>
+          <Text style={styles.position}>{user.position}</Text>
         </View>
       )}
-      
       {user.role === 'student' && user.department && (
-        <View style={styles.educationSection}>
-          <Text style={styles.sectionTitle}>Education</Text>
-          <View style={styles.educationItem}>
-            <Text style={styles.universityName}>ConnectU University</Text>
-            <Text style={styles.degreeName}>{user.department}</Text>
-            <Text style={styles.duration}>Graduating {user.graduationYear}</Text>
-          </View>
+        <View style={styles.cardSection}>
+          <Text style={styles.sectionTitle}><GraduationCap size={18} color={Colors.primary} />  Education</Text>
+          <Text style={styles.universityName}>ConnectU University</Text>
+          <Text style={styles.degreeName}>{user.department}</Text>
+          <Text style={styles.duration}>Graduating {user.graduationYear}</Text>
         </View>
       )}
       <Text style={[styles.sectionTitle, { marginLeft: 16, marginTop: 16 }]}>Posts</Text>
-    </>
+    </Animated.View>
   );
 
   if (loading) {
@@ -358,8 +313,22 @@ export default function UserProfileScreen() {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={ListHeader}
-        ListFooterComponent={postsLoading ? <ActivityIndicator style={{ margin: 20 }} /> : null}
+        ListFooterComponent={
+          postsLoading ? <ActivityIndicator style={{ margin: 20 }} /> :
+          userPosts.length === 0 ? (
+            <View style={{ alignItems: 'center', margin: 40 }}>
+              <Text style={{ color: Colors.textSecondary, fontSize: 16 }}>No posts yet</Text>
+            </View>
+          ) : null
+        }
       />
+      {profileId === authUser?._id && (
+        <TouchableOpacity style={styles.fab} onPress={() => router.push('/create-post')}>
+          <LinearGradient colors={[Colors.primary, Colors.secondary]} style={styles.fabGradient}>
+            <Plus size={28} color="#fff" />
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
     </>
   );
 }
@@ -384,12 +353,32 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 16,
   },
-  header: {
-    backgroundColor: Colors.card,
-    padding: 20,
+  gradientHeader: {
+    width: '100%',
+    paddingBottom: 30,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+  headerContent: {
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    marginTop: 20,
+  },
+  profileImageWrapper: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+    borderRadius: 70,
+    backgroundColor: '#fff',
+    padding: 4,
+    marginBottom: 8,
+    position: 'relative',
   },
   profileImage: {
     width: 120,
@@ -397,6 +386,17 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     borderWidth: 3,
     borderColor: Colors.primary,
+  },
+  verifiedBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: Colors.success,
+    borderRadius: 12,
+    padding: 2,
+    borderWidth: 2,
+    borderColor: '#fff',
+    zIndex: 2,
   },
   cameraIconContainer: {
     position: 'absolute',
@@ -412,13 +412,14 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginTop: 12,
   },
-  verifiedText: {
-    color: Colors.success,
-    fontWeight: '500',
-  },
-  notVerifiedText: {
-    color: Colors.error,
-    fontWeight: '500',
+  bioBelowName: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 4,
+    marginBottom: 2,
+    textAlign: 'center',
+    maxWidth: 280,
+    alignSelf: 'center',
   },
   role: {
     fontSize: 16,
@@ -426,19 +427,26 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
     marginTop: 4,
   },
-  details: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: 4,
-  },
-  statsRow: {
+  statsRowNew: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',
-    marginTop: 20,
+    marginTop: 18,
+    marginBottom: 8,
   },
-  statBox: {
+  statPill: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    marginHorizontal: 4,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   statNumber: {
     fontSize: 18,
@@ -450,37 +458,38 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 4,
   },
-  actionsContainer: {
+  actionsContainerNew: {
     flexDirection: 'row',
+    justifyContent: 'center',
     marginTop: 16,
+    marginBottom: 8,
+    gap: 8,
   },
-  actionButton: {
+  actionButtonNew: {
+    borderRadius: 24,
+    marginHorizontal: 6,
     flex: 1,
-    marginHorizontal: 8,
+    elevation: 2,
+  },
+  cardSection: {
+    backgroundColor: Colors.card,
+    borderRadius: 18,
+    marginHorizontal: 16,
+    marginTop: 14,
+    padding: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: Colors.text,
     marginBottom: 8,
-  },
-  bioSection: {
-    padding: 16,
-    backgroundColor: Colors.card,
-    marginTop: 8,
-  },
-  bioText: {
-    fontSize: 15,
-    color: Colors.text,
-    lineHeight: 22,
-  },
-  experienceSection: {
-    padding: 16,
-    backgroundColor: Colors.card,
-    marginTop: 8,
-  },
-  experienceItem: {
-    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   companyName: {
     fontSize: 16,
@@ -496,14 +505,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 4,
   },
-  educationSection: {
-    padding: 16,
-    backgroundColor: Colors.card,
-    marginTop: 8,
-  },
-  educationItem: {
-    marginBottom: 8,
-  },
   universityName: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -512,5 +513,23 @@ const styles = StyleSheet.create({
   degreeName: {
     fontSize: 15,
     color: Colors.textSecondary,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 32,
+    right: 24,
+    zIndex: 10,
+    elevation: 8,
+  },
+  fabGradient: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
   },
 });
