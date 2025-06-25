@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 
 // API Configuration
 const getApiBaseUrl = () => {
@@ -236,6 +236,12 @@ class ApiClient {
         }
         
         throw new Error(errorData.message || 'Unauthorized');
+      }
+
+      // Handle rate limiting
+      if (response.status === 429) {
+        Alert.alert('Too Many Requests', 'You are making requests too quickly. Please wait a moment and try again.');
+        throw new Error('Too many requests. Please slow down.');
       }
 
       if (!response.ok) {
@@ -527,6 +533,10 @@ class ApiClient {
   async getAllUsers(page = 1, limit = 20): Promise<PaginatedResponse<any>> {
     const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
     return this.request(`/users/all?${params.toString()}`, { method: 'GET' });
+  }
+
+  async uploadCoverImage(formData: FormData): Promise<ApiResponse<any>> {
+    return this.post('/users/upload/cover-image', formData);
   }
 }
 

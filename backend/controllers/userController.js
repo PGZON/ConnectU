@@ -1,6 +1,9 @@
 const User = require('../models/User');
 const { successResponse, notFoundResponse, badRequestResponse, forbiddenResponse } = require('../utils/responseHandler');
 const { uploadImage, deleteFile } = require('../config/cloudinary');
+const Connection = require('../models/Connection');
+const Post = require('../models/Post');
+const Query = require('../models/Query');
 
 // @desc    Get user profile by ID
 // @route   GET /api/users/profile/:id
@@ -17,7 +20,22 @@ const getUserProfile = async (req, res) => {
       return notFoundResponse(res, 'User not found');
     }
 
+    // Count accepted connections (as student or alumni)
+    const connectionsCount = await Connection.countDocuments({
+      $or: [
+        { student: user._id },
+        { alumni: user._id }
+      ],
+      status: 'accepted'
+    });
+    // Count posts
+    const postsCount = await Post.countDocuments({ author: user._id, isActive: true });
+    // Count queries (as student)
+    const queriesCount = await Query.countDocuments({ student: user._id });
     const userResponse = user.getPublicProfile();
+    userResponse.connectionsCount = connectionsCount;
+    userResponse.postsCount = postsCount;
+    userResponse.queriesCount = queriesCount;
     return successResponse(res, userResponse, 'User profile retrieved successfully');
   } catch (error) {
     console.error('Get user profile error:', error);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, Alert, Animated } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, Alert, Animated, Easing } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import useConnectionStore from '@/store/connectionStore';
@@ -34,6 +34,9 @@ export default function UserProfileScreen() {
   const { likePost } = useFeedStore();
   const [uploading, setUploading] = useState(false);
   const [profileAnim] = useState(new Animated.Value(0));
+  const [coverAnim] = useState(new Animated.Value(0));
+  const [profileImgAnim] = useState(new Animated.Value(0));
+  const [badgeAnim] = useState(new Animated.Value(0));
 
   useEffect(() => {
     let isMounted = true;
@@ -129,11 +132,16 @@ export default function UserProfileScreen() {
   );
   
   useEffect(() => {
-    Animated.timing(profileAnim, {
-      toValue: 1,
-      duration: 700,
-      useNativeDriver: true,
-    }).start();
+    Animated.parallel([
+      Animated.timing(coverAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.timing(profileImgAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(badgeAnim, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(badgeAnim, { toValue: 0, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true })
+        ])
+      )
+    ]).start();
   }, []);
   
   const handleConnect = () => {
@@ -205,14 +213,62 @@ export default function UserProfileScreen() {
     }
   };
 
+  const handleCoverImageChange = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Please grant photo library access to change your cover image.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [3, 1],
+        quality: 0.8,
+      });
+      if (result.canceled) return;
+      setUploading(true);
+      const asset = result.assets[0];
+      const formData = new FormData();
+      formData.append('file', {
+        uri: asset.uri,
+        name: asset.fileName || 'cover.jpg',
+        type: asset.type || 'image/jpeg',
+      });
+      const uploadRes = await api.uploadCoverImage(formData);
+      if (!uploadRes.success) throw new Error(uploadRes.message || 'Failed to upload image');
+      await fetchProfileData();
+      Alert.alert('Success', 'Cover image updated!');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to update cover image');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const renderItem = ({ item }: { item: Post }) => (
     <PostCard post={item} onLike={() => handleLikePost(item.id)} />
   );
 
   const ListHeader = () => (
-    <Animated.View style={{ opacity: profileAnim, transform: [{ scale: profileAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) }] }}>
-      <LinearGradient colors={[Colors.primary, Colors.secondary]} style={styles.gradientHeader}>
-        <View style={styles.headerContent}>
+    <Animated.View style={{ opacity: coverAnim }}>
+      <View style={styles.coverPhotoWrapper}>
+        {user.coverImageUrl ? (
+          <Image source={{ uri: user.coverImageUrl }} style={styles.coverPhoto} contentFit="cover" />
+        ) : (
+          <LinearGradient colors={[Colors.primary, Colors.secondary]} style={styles.coverPhoto} />
+        )}
+        {profileId === authUser?._id && (
+          <TouchableOpacity style={styles.coverCameraIcon} onPress={handleCoverImageChange} disabled={uploading}>
+            <Camera size={24} color="#fff" />
+          </TouchableOpacity>
+        )}
+      </View>
+      <View style={styles.headerContent}>
+        <Animated.View style={{
+          transform: [{ scale: profileImgAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) }],
+          opacity: profileImgAnim
+        }}>
           <View style={styles.profileImageWrapper}>
             <Image
               source={{ uri: user.profileImageUrl }}
@@ -220,9 +276,14 @@ export default function UserProfileScreen() {
               contentFit="cover"
             />
             {user.isVerified && (
-              <View style={styles.verifiedBadge}>
+              <Animated.View style={[styles.verifiedBadge, {
+                shadowColor: Colors.success,
+                shadowOpacity: badgeAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }),
+                shadowRadius: badgeAnim.interpolate({ inputRange: [0, 1], outputRange: [6, 12] }),
+                elevation: 8
+              }]}> 
                 <CheckCircle size={20} color="#fff" />
-              </View>
+              </Animated.View>
             )}
             {profileId === authUser?._id && (
               <View style={styles.cameraIconContainer}>
@@ -236,36 +297,37 @@ export default function UserProfileScreen() {
               </View>
             )}
           </View>
-          <Text style={styles.name}>{user.name}</Text>
-          <Text style={styles.bioBelowName}>{user.bio || 'No bio added yet.'}</Text>
-          <Text style={styles.role}>{user.role}</Text>
-        </View>
-        <View style={styles.statsRowNew}>
-          <View style={styles.statPill}><Users size={18} color={Colors.primary} /><Text style={styles.statNumber}>{user.connectionsCount ?? 0}</Text><Text style={styles.statLabel}>Connections</Text></View>
-          <View style={styles.statPill}><FileText size={18} color={Colors.primary} /><Text style={styles.statNumber}>{userPosts.length}</Text><Text style={styles.statLabel}>Posts</Text></View>
-          <View style={styles.statPill}><HelpCircle size={18} color={Colors.primary} /><Text style={styles.statNumber}>{user.queriesCount ?? 0}</Text><Text style={styles.statLabel}>Queries</Text></View>
-        </View>
-        <View style={styles.actionsContainerNew}>
-          {profileId === authUser?._id ? (
-            <>
-              <Button title="Edit Profile" onPress={() => router.push('/edit-profile')} style={styles.actionButtonNew} />
-              <Button title="Logout" onPress={() => { useAuthStore.getState().logout(); router.replace('/login'); }} variant="danger" style={styles.actionButtonNew} />
-            </>
-          ) : (
-            <>
-              {connectionStatus === 'none' && (
-                <Button title="Connect" onPress={handleConnect} variant="primary" style={styles.actionButtonNew} />
-              )}
-              {connectionStatus === 'pending' && (
-                <Button title="Request Pending" disabled={true} style={styles.actionButtonNew} />
-              )}
-              {connectionStatus === 'accepted' && (
-                <Button title="Message" onPress={handleMessage} variant="primary" style={styles.actionButtonNew} icon={<MessageCircle size={16} color="#FFFFFF" style={{ marginRight: 8 }} />} />
-              )}
-            </>
-          )}
-        </View>
-      </LinearGradient>
+        </Animated.View>
+        <Text style={styles.name}>{user.name}</Text>
+        <Text style={styles.bioBelowName}>{user.bio || 'No bio added yet.'}</Text>
+        <Text style={styles.role}>{user.role}</Text>
+        <View style={styles.divider} />
+      </View>
+      <View style={styles.statsRowNew}>
+        <View style={styles.statPill}><Users size={18} color={Colors.primary} /><Text style={styles.statNumber}>{user.connectionsCount ?? 0}</Text><Text style={styles.statLabel}>Connections</Text></View>
+        <View style={styles.statPill}><FileText size={18} color={Colors.primary} /><Text style={styles.statNumber}>{user.postsCount ?? 0}</Text><Text style={styles.statLabel}>Posts</Text></View>
+        <View style={styles.statPill}><HelpCircle size={18} color={Colors.primary} /><Text style={styles.statNumber}>{user.queriesCount ?? 0}</Text><Text style={styles.statLabel}>Queries</Text></View>
+      </View>
+      <View style={styles.actionsContainerNew}>
+        {profileId === authUser?._id ? (
+          <>
+            <Button title="Edit Profile" onPress={() => router.push('/edit-profile')} style={styles.actionButtonNew} />
+            <Button title="Logout" onPress={() => { useAuthStore.getState().logout(); router.replace('/login'); }} variant="danger" style={styles.actionButtonNew} />
+          </>
+        ) : (
+          <>
+            {connectionStatus === 'none' && (
+              <Button title="Connect" onPress={handleConnect} variant="primary" style={styles.actionButtonNew} />
+            )}
+            {connectionStatus === 'pending' && (
+              <Button title="Request Pending" disabled={true} style={styles.actionButtonNew} />
+            )}
+            {connectionStatus === 'accepted' && (
+              <Button title="Message" onPress={handleMessage} variant="primary" style={styles.actionButtonNew} icon={<MessageCircle size={16} color="#FFFFFF" style={{ marginRight: 8 }} />} />
+            )}
+          </>
+        )}
+      </View>
       {user.role === 'alumni' && user.company && (
         <View style={styles.cardSection}>
           <Text style={styles.sectionTitle}><Briefcase size={18} color={Colors.primary} />  Experience</Text>
@@ -531,5 +593,36 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
     shadowRadius: 8,
+  },
+  coverPhotoWrapper: {
+    width: '100%',
+    height: 120,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  coverPhoto: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  coverCameraIcon: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+    zIndex: 2,
+  },
+  divider: {
+    width: '80%',
+    height: 1,
+    backgroundColor: Colors.border,
+    alignSelf: 'center',
+    marginVertical: 12,
   },
 });
