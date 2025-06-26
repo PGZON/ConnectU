@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, FlatList, RefreshControl, ActivityIndicator, Text, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { useQueryStore } from '@/store/queryStore';
 import QueryCard from '@/components/QueryCard';
 import Colors from '@/constants/colors';
@@ -7,6 +7,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/utils/api';
+import Avatar from '@/components/Avatar';
 
 export default function QueriesScreen() {
   const { queries, isLoading, fetchQueries } = useQueryStore();
@@ -21,6 +22,10 @@ export default function QueriesScreen() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [results, setResults] = useState<any>(null);
+
+  // Modal for answer details
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedAnswer, setSelectedAnswer] = useState<any>(null);
 
   // Use useFocusEffect to fetch queries whenever the screen is focused
   useFocusEffect(
@@ -108,6 +113,38 @@ export default function QueriesScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Modal for answer details */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {selectedAnswer && (
+              <>
+                <View style={styles.userInfo}>
+                  <Avatar uri={selectedAnswer.alumni?.profileImageUrl} size={48} />
+                  <View style={styles.userDetails}>
+                    <Text style={styles.name}>{selectedAnswer.alumni?.name}</Text>
+                    {selectedAnswer.createdAt && (
+                      <Text style={styles.timestamp}>{new Date(selectedAnswer.createdAt).toLocaleString()}</Text>
+                    )}
+                  </View>
+                </View>
+                <Text style={styles.modalAnswerText}>{selectedAnswer.content}</Text>
+                {selectedAnswer.isAccepted && (
+                  <Text style={{ color: Colors.success, fontWeight: 'bold', marginTop: 8 }}>Accepted Answer</Text>
+                )}
+                <Pressable style={styles.closeButton} onPress={() => setModalVisible(false)}>
+                  <Text style={styles.closeButtonText}>Close</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
       {/* --- Poll Section --- */}
       {(pollLoading || poll || pollError) && (
         <View style={styles.pollContainer}>
@@ -163,6 +200,10 @@ export default function QueriesScreen() {
           <QueryCard 
             query={item} 
             onAnswer={handleAnswer}
+            onAnswerPress={(answer) => {
+              setSelectedAnswer(answer);
+              setModalVisible(true);
+            }}
           />
         )}
         contentContainerStyle={styles.listContent}
@@ -302,5 +343,55 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    alignItems: 'center',
+  },
+  modalAnswerText: {
+    fontSize: 17,
+    color: Colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  closeButton: {
+    marginTop: 16,
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  userDetails: {
+    marginLeft: 12,
+  },
+  name: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.text,
+  },
+  timestamp: {
+    fontSize: 14,
+    color: Colors.textSecondary,
   },
 });

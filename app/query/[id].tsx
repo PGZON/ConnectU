@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { StyleSheet, View, Text, TextInput, KeyboardAvoidingView, Platform, ScrollView, FlatList } from 'react-native';
+import { StyleSheet, View, Text, TextInput, KeyboardAvoidingView, Platform, ScrollView, FlatList, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { useQueryStore } from '@/store/queryStore';
 import { useAuthStore } from '@/store/authStore';
@@ -9,19 +9,24 @@ import Avatar from '@/components/Avatar';
 import { formatTimeAgo } from '@/utils/dateUtils';
 import { Answer } from '@/types';
 
-const AnswerCard = ({ answer }: { answer: Answer }) => (
-  <View style={styles.answerContainer}>
-    <View style={styles.userInfo}>
-      <Avatar uri={answer.alumni?.profileImageUrl} size={40} />
-      <View style={styles.userDetails}>
-        <Text style={styles.userName}>{answer.alumni?.name}</Text>
-        {answer.createdAt && (
-          <Text style={styles.timestamp}>{formatTimeAgo(new Date(answer.createdAt))}</Text>
-        )}
+const AnswerCard = ({ answer, onPress }: { answer: Answer, onPress: () => void }) => (
+  <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+    <View style={styles.answerContainer}>
+      <View style={styles.userInfo}>
+        <Avatar uri={answer.alumni?.profileImageUrl} size={40} />
+        <View style={styles.userDetails}>
+          <Text style={styles.userName}>{answer.alumni?.name}</Text>
+          {answer.createdAt && (
+            <Text style={styles.timestamp}>{formatTimeAgo(new Date(answer.createdAt))}</Text>
+          )}
+        </View>
       </View>
+      <Text style={styles.answerText} numberOfLines={3} ellipsizeMode="tail">{answer.content}</Text>
+      {answer.isAccepted && (
+        <Text style={{ color: Colors.success, fontWeight: 'bold', marginTop: 4 }}>Accepted Answer</Text>
+      )}
     </View>
-    <Text style={styles.answerText}>{answer.content}</Text>
-  </View>
+  </TouchableOpacity>
 );
 
 export default function QueryDetailScreen() {
@@ -30,6 +35,8 @@ export default function QueryDetailScreen() {
   const { user } = useAuthStore();
   const [answer, setAnswer] = useState('');
   const router = useRouter();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedAnswer, setSelectedAnswer] = useState<Answer | null>(null);
 
   const query = queries.find(q => q.id === id);
 
@@ -62,6 +69,7 @@ export default function QueryDetailScreen() {
       console.log('[DEBUG] answerQuery response:', success);
       if (success) {
         setAnswer('');
+        router.replace('/(tabs)/queries');
       } else {
         console.error('[DEBUG] answerQuery failed:', success);
       }
@@ -74,6 +82,38 @@ export default function QueryDetailScreen() {
     <>
       <Stack.Screen options={{ title: 'Career Query' }} />
       
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {selectedAnswer && (
+              <>
+                <View style={styles.userInfo}>
+                  <Avatar uri={selectedAnswer.alumni?.profileImageUrl} size={48} />
+                  <View style={styles.userDetails}>
+                    <Text style={styles.userName}>{selectedAnswer.alumni?.name}</Text>
+                    {selectedAnswer.createdAt && (
+                      <Text style={styles.timestamp}>{formatTimeAgo(new Date(selectedAnswer.createdAt))}</Text>
+                    )}
+                  </View>
+                </View>
+                <Text style={styles.modalAnswerText}>{selectedAnswer.content}</Text>
+                {selectedAnswer.isAccepted && (
+                  <Text style={{ color: Colors.success, fontWeight: 'bold', marginTop: 8 }}>Accepted Answer</Text>
+                )}
+                <Pressable style={styles.closeButton} onPress={() => setModalVisible(false)}>
+                  <Text style={styles.closeButtonText}>Close</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -100,8 +140,16 @@ export default function QueryDetailScreen() {
           {query.answers && query.answers.length > 0 ? (
             <FlatList
               data={query.answers}
-              renderItem={({ item }) => <AnswerCard answer={item} />}
-              keyExtractor={(item) => item._id}
+              renderItem={({ item }) => (
+                <AnswerCard
+                  answer={item}
+                  onPress={() => {
+                    setSelectedAnswer(item);
+                    setModalVisible(true);
+                  }}
+                />
+              )}
+              keyExtractor={(item) => item.id}
               scrollEnabled={false}
             />
           ) : (
@@ -247,5 +295,38 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontStyle: 'italic',
     marginVertical: 20,
-  }
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    alignItems: 'center',
+  },
+  modalAnswerText: {
+    fontSize: 17,
+    color: Colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  closeButton: {
+    marginTop: 16,
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });

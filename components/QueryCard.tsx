@@ -10,9 +10,10 @@ import { formatTimeAgo } from '@/utils/dateUtils';
 interface QueryCardProps {
   query: Query;
   onAnswer?: (queryId: string) => void;
+  onAnswerPress?: (answer: any) => void;
 }
 
-export default function QueryCard({ query, onAnswer }: QueryCardProps) {
+export default function QueryCard({ query, onAnswer, onAnswerPress }: QueryCardProps) {
   const router = useRouter();
 
   const handleStudentPress = () => {
@@ -54,7 +55,12 @@ export default function QueryCard({ query, onAnswer }: QueryCardProps) {
         <View style={styles.answerContainer}>
           <Text style={styles.answerLabel}>Answers:</Text>
           {query.answers.map((ans) => (
-            <View key={ans.id} style={styles.answerBox}>
+            <TouchableOpacity
+              key={ans.id}
+              onPress={() => onAnswerPress && onAnswerPress(ans)}
+              activeOpacity={0.8}
+              style={styles.answerBox}
+            >
               <View style={styles.answerHeader}>
                 <TouchableOpacity onPress={() => handleAlumniPress(ans.alumni?.id)} style={styles.userInfo}>
                   <Avatar uri={ans.alumni?.profileImageUrl} size={36} />
@@ -66,7 +72,7 @@ export default function QueryCard({ query, onAnswer }: QueryCardProps) {
               {ans.isAccepted && (
                 <Text style={{ color: Colors.success, fontWeight: 'bold', marginTop: 4 }}>Accepted Answer</Text>
               )}
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       ) : (
