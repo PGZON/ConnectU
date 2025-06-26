@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Dimensions, FlatList, Animated, Pressable, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Dimensions, FlatList, Animated, Pressable, Alert, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Heart, MessageCircle, Share2, Trash2 } from 'lucide-react-native';
@@ -18,8 +18,10 @@ interface PostCardProps {
   onComment?: (postId: string) => void;
 }
 
-const { width } = Dimensions.get('window');
-const MEDIA_SECTION_WIDTH = width;
+const { width: windowWidth } = Dimensions.get('window');
+// Use a more responsive width for web
+const cardWidth = Platform.OS === 'web' ? Math.min(windowWidth, 600) : windowWidth;
+const MEDIA_SECTION_WIDTH = cardWidth;
 
 export default function PostCard({ post, onLike, onComment }: PostCardProps) {
   const router = useRouter();
@@ -27,6 +29,7 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const [scaleAnim] = useState(new Animated.Value(1));
+  const [mediaContainerWidth, setMediaContainerWidth] = useState(0);
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
@@ -40,6 +43,12 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
 
   const { user: currentUser } = useAuthStore();
   const { deletePost } = useFeedStore();
+
+  const getItemLayout = (data: any, index: number) => ({
+    length: mediaContainerWidth,
+    offset: mediaContainerWidth * index,
+    index,
+  });
 
   React.useEffect(() => {
     if (currentUser) {
@@ -90,7 +99,7 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
   const renderMediaItem = ({ item }: { item: any }) => (
     <Image
       source={{ uri: item.url }}
-      style={styles.media}
+      style={{ width: mediaContainerWidth, height: '100%' }}
       contentFit="cover"
       transition={300}
     />
@@ -121,7 +130,10 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
       <Text style={styles.caption}>{post.caption}</Text>
 
       {post.media && post.media.length > 0 && (
-        <View style={styles.mediaContainer}>
+        <View 
+          style={styles.mediaContainer}
+          onLayout={(e) => setMediaContainerWidth(e.nativeEvent.layout.width)}
+        >
           {post.media.length === 1 ? (
             <>
               <Image
@@ -133,19 +145,19 @@ export default function PostCard({ post, onLike, onComment }: PostCardProps) {
               <LinearGradient colors={["rgba(0,0,0,0.15)", "rgba(0,0,0,0.35)"]} style={styles.mediaOverlay} />
             </>
           ) : (
-            <>
+            mediaContainerWidth > 0 && <>
               <FlatList
                 ref={flatListRef}
                 data={post.media}
                 renderItem={renderMediaItem}
+                getItemLayout={getItemLayout}
                 keyExtractor={(item) => item.url}
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
                 onViewableItemsChanged={onViewableItemsChanged}
                 viewabilityConfig={viewabilityConfig}
-                style={{ width: MEDIA_SECTION_WIDTH }}
-                contentContainerStyle={{ width: MEDIA_SECTION_WIDTH * post.media.length }}
+                style={{ height: '100%' }}
               />
               <View style={styles.pagination}>
                 {post.media.map((_, index) => (
@@ -240,18 +252,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
     lineHeight: 20,
+    maxWidth: cardWidth,
   },
   mediaContainer: {
     position: 'relative',
-    width: MEDIA_SECTION_WIDTH,
-    height: width, // 1:1 aspect ratio
+    width: '100%',
+    aspectRatio: 1,
     backgroundColor: Colors.border,
     marginBottom: 8,
   },
   media: {
-    width: MEDIA_SECTION_WIDTH,
+    width: '100%',
     height: '100%',
-    borderRadius: 0,
   },
   pagination: {
     position: 'absolute',
@@ -320,7 +332,6 @@ const styles = StyleSheet.create({
   },
   mediaOverlay: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 0,
   },
   actionButtonPressed: {
     backgroundColor: Colors.background,

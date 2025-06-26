@@ -469,6 +469,10 @@ class ApiClient {
     return this.post('/queries', queryData);
   }
 
+  async addAnswer(queryId: string, answerData: any): Promise<ApiResponse<any>> {
+    return this.put(`/queries/${queryId}/answer`, answerData);
+  }
+
   // Connections API
   async sendConnectionRequest(requestData: any): Promise<ApiResponse<any>> {
     return this.post('/connections/request', requestData);

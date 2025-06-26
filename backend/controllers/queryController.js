@@ -83,7 +83,11 @@ const getQuery = async (req, res) => {
   try {
     const query = await Query.findById(req.params.id)
       .populate('student', 'name email role profileImageUrl')
-      .populate('assignedAlumni', 'name email role profileImageUrl');
+      .populate('assignedAlumni', 'name email role profileImageUrl')
+      .populate({
+        path: 'answers.alumni',
+        select: 'name email role profileImageUrl'
+      });
 
     if (!query) {
       return notFoundResponse(res, 'Query not found');

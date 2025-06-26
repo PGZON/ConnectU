@@ -78,13 +78,13 @@ const styles = StyleSheet.create({
   sidebar: {
     width: 200,
     backgroundColor: '#11182a',
-    paddingVertical: 32,
+    paddingVertical: 5,
     paddingHorizontal: 12,
     alignItems: 'flex-start',
   },
   adminInfo: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 1,
   },
   avatar: {
     width: 64,
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoutBtn: {
-    marginTop: 32,
+    marginTop: 12,
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderRadius: 6,

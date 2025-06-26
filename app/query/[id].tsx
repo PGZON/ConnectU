@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { StyleSheet, View, Text, TextInput, KeyboardAvoidingView, Platform, ScrollView, FlatList } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { useQueryStore } from '@/store/queryStore';
 import { useAuthStore } from '@/store/authStore';
@@ -7,6 +7,22 @@ import Colors from '@/constants/colors';
 import Button from '@/components/Button';
 import Avatar from '@/components/Avatar';
 import { formatTimeAgo } from '@/utils/dateUtils';
+import { Answer } from '@/types';
+
+const AnswerCard = ({ answer }: { answer: Answer }) => (
+  <View style={styles.answerContainer}>
+    <View style={styles.userInfo}>
+      <Avatar uri={answer.alumni?.profileImageUrl} size={40} />
+      <View style={styles.userDetails}>
+        <Text style={styles.userName}>{answer.alumni?.name}</Text>
+        {answer.createdAt && (
+          <Text style={styles.timestamp}>{formatTimeAgo(new Date(answer.createdAt))}</Text>
+        )}
+      </View>
+    </View>
+    <Text style={styles.answerText}>{answer.content}</Text>
+  </View>
+);
 
 export default function QueryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -16,6 +32,14 @@ export default function QueryDetailScreen() {
   const router = useRouter();
 
   const query = queries.find(q => q.id === id);
+
+  const canAnswer = useMemo(() => {
+    if (!user || user.role !== 'alumni') return false;
+    // This logic allows an alum to answer multiple times. 
+    // To prevent re-answering, you would check:
+    // return !query?.answers.some(a => a.alumni?._id === user._id);
+    return true;
+  }, [user, query]);
 
   if (!query) {
     return (
@@ -32,9 +56,18 @@ export default function QueryDetailScreen() {
 
   const handleSubmitAnswer = async () => {
     if (answer.trim() === '') return;
-    
-    await answerQuery(id, answer);
-    router.back();
+    console.log('[DEBUG] Submit Answer pressed. Query ID:', id, 'Answer:', answer);
+    try {
+      const success = await answerQuery(id, answer);
+      console.log('[DEBUG] answerQuery response:', success);
+      if (success) {
+        setAnswer('');
+      } else {
+        console.error('[DEBUG] answerQuery failed:', success);
+      }
+    } catch (err) {
+      console.error('[DEBUG] Error in handleSubmitAnswer:', err);
+    }
   };
 
   return (
@@ -60,53 +93,44 @@ export default function QueryDetailScreen() {
               <Text style={styles.questionLabel}>Question:</Text>
               <Text style={styles.questionText}>{query.question}</Text>
             </View>
-            
-            {query.answer ? (
-              <View style={styles.answerContainer}>
-                <View style={styles.userInfo}>
-                  <Avatar uri={query.alumni?.profileImageUrl} size={40} />
-                  <View style={styles.userDetails}>
-                    <Text style={styles.userName}>{query.alumni?.name}</Text>
-                    {query.answeredAt && (
-                      <Text style={styles.timestamp}>{formatTimeAgo(new Date(query.answeredAt))}</Text>
-                    )}
-                  </View>
-                </View>
-                <Text style={styles.answerLabel}>Answer:</Text>
-                <Text style={styles.answerText}>{query.answer}</Text>
-              </View>
-            ) : (
-              user?.role === 'alumni' ? (
-                <View style={styles.answerInputContainer}>
-                  <Text style={styles.answerLabel}>Your Answer:</Text>
-                  <TextInput
-                    style={styles.answerInput}
-                    placeholder="Provide your professional advice..."
-                    value={answer}
-                    onChangeText={setAnswer}
-                    multiline
-                    maxLength={1000}
-                    placeholderTextColor={Colors.textSecondary}
-                  />
-                  <Button
-                    title="Submit Answer"
-                    onPress={handleSubmitAnswer}
-                    variant="primary"
-                    loading={isLoading}
-                    disabled={answer.trim() === ''}
-                    fullWidth
-                    style={styles.submitButton}
-                  />
-                </View>
-              ) : (
-                <View style={styles.answerInputContainer}>
-                  <Text style={{ color: Colors.textSecondary, fontStyle: 'italic', marginTop: 16 }}>
-                    Only alumni can answer queries.
-                  </Text>
-                </View>
-              )
-            )}
           </View>
+
+          <Text style={styles.answersHeader}>Answers</Text>
+          
+          {query.answers && query.answers.length > 0 ? (
+            <FlatList
+              data={query.answers}
+              renderItem={({ item }) => <AnswerCard answer={item} />}
+              keyExtractor={(item) => item._id}
+              scrollEnabled={false}
+            />
+          ) : (
+             <Text style={styles.noAnswersText}>No answers yet. Be the first to help!</Text>
+          )}
+
+          {canAnswer && (
+            <View style={styles.answerInputContainer}>
+              <Text style={styles.answerLabel}>Your Answer:</Text>
+              <TextInput
+                style={styles.answerInput}
+                placeholder="Provide your professional advice..."
+                value={answer}
+                onChangeText={setAnswer}
+                multiline
+                maxLength={2000}
+                placeholderTextColor={Colors.textSecondary}
+              />
+              <Button
+                title="Submit Answer"
+                onPress={handleSubmitAnswer}
+                variant="primary"
+                loading={isLoading}
+                disabled={answer.trim() === ''}
+                fullWidth
+                style={styles.submitButton}
+              />
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </>
@@ -137,6 +161,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: 12,
     padding: 16,
+    marginBottom: 24,
   },
   userInfo: {
     flexDirection: 'row',
@@ -157,11 +182,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   questionContainer: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   questionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: Colors.text,
     marginBottom: 8,
   },
@@ -169,11 +194,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
     lineHeight: 24,
+    marginBottom: 4,
+  },
+  answersHeader: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 16,
+    paddingHorizontal: 8,
   },
   answerContainer: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingTop: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
   },
   answerLabel: {
     fontSize: 16,
@@ -185,11 +219,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
     lineHeight: 24,
+    marginTop: 8,
   },
   answerInputContainer: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingTop: 16,
+    marginTop: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 16,
   },
   answerInput: {
     backgroundColor: Colors.background,
@@ -200,8 +236,16 @@ const styles = StyleSheet.create({
     minHeight: 150,
     textAlignVertical: 'top',
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.border
   },
   submitButton: {
     marginTop: 8,
   },
+  noAnswersText: {
+    textAlign: 'center',
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+    marginVertical: 20,
+  }
 });

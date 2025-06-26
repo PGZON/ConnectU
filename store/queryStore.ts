@@ -13,7 +13,7 @@ interface QueryState {
   fetchQueries: (page?: number) => Promise<void>;
   fetchQueriesForUser: (userId: string) => Promise<void>;
   askQuery: (title: string, content: string, category: string, priority?: string) => Promise<void>;
-  answerQuery: (queryId: string, content: string) => Promise<void>;
+  answerQuery: (queryId: string, content: string) => Promise<boolean>;
   refreshQueries: () => Promise<void>;
 }
 
@@ -203,6 +203,7 @@ export const useQueryStore = create<QueryState>((set, get) => ({
             isLoading: false 
           });
         }
+        return true;
       } else {
         throw new Error(response.message || 'Failed to answer query');
       }
@@ -211,6 +212,7 @@ export const useQueryStore = create<QueryState>((set, get) => ({
         error: error instanceof Error ? error.message : 'Failed to answer query', 
         isLoading: false 
       });
+      return false;
     }
   },
 }));
