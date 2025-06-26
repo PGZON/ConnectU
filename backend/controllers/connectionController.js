@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const { successResponse, notFoundResponse, badRequestResponse, forbiddenResponse } = require('../utils/responseHandler');
 const { validateRequest } = require('../middleware/validate');
 const { body } = require('express-validator');
+const Log = require('../models/Log');
 
 // @desc    Send connection request
 // @route   POST /api/connections/request
@@ -48,6 +49,15 @@ const sendConnectionRequest = async (req, res) => {
     await connection.populate('student', 'name email role profileImageUrl _id');
     await connection.populate('alumni', 'name email role profileImageUrl _id');
 
+    // Log connection request
+    await Log.create({
+      type: 'connection_request',
+      actor: req.user.email,
+      target: alumni.email,
+      message: `User ${req.user.email} sent a connection request to ${alumni.email}`,
+      meta: { connectionId: connection._id }
+    });
+
     return successResponse(res, connection, 'Connection request sent successfully');
   } catch (error) {
     console.error('Send connection request error:', error);
@@ -75,6 +85,15 @@ const acceptConnection = async (req, res) => {
     connection.respondedAt = new Date();
     await connection.save();
 
+    // Log connection accept
+    await Log.create({
+      type: 'connection_accept',
+      actor: req.user.email,
+      target: connection.student.toString(),
+      message: `Alumni ${req.user.email} accepted a connection request`,
+      meta: { connectionId: connection._id }
+    });
+
     return successResponse(res, connection, 'Connection accepted successfully');
   } catch (error) {
     console.error('Accept connection error:', error);
@@ -101,6 +120,15 @@ const rejectConnection = async (req, res) => {
     connection.responseMessage = req.body.responseMessage || '';
     connection.respondedAt = new Date();
     await connection.save();
+
+    // Log connection reject
+    await Log.create({
+      type: 'connection_reject',
+      actor: req.user.email,
+      target: connection.student.toString(),
+      message: `Alumni ${req.user.email} rejected a connection request`,
+      meta: { connectionId: connection._id }
+    });
 
     return successResponse(res, connection, 'Connection rejected successfully');
   } catch (error) {
@@ -230,6 +258,15 @@ const blockConnection = async (req, res) => {
     connection.blockedBy = req.user._id;
     await connection.save();
 
+    // Log connection block
+    await Log.create({
+      type: 'connection_block',
+      actor: req.user.email,
+      target: connection.alumni.toString(),
+      message: `User ${req.user.email} blocked a connection`,
+      meta: { connectionId: connection._id }
+    });
+
     return successResponse(res, connection, 'Connection blocked successfully');
   } catch (error) {
     console.error('Block connection error:', error);
@@ -315,6 +352,15 @@ const disconnectConnection = async (req, res) => {
 
     // Instead of changing status, we permanently delete the connection
     await Connection.findByIdAndDelete(connectionId);
+
+    // Log connection disconnect
+    await Log.create({
+      type: 'connection_disconnect',
+      actor: req.user.email,
+      target: connection ? (connection.alumni?.toString() || connection.student?.toString()) : null,
+      message: `User ${req.user.email} disconnected a connection`,
+      meta: { connectionId }
+    });
 
     return successResponse(res, null, 'Connection successfully disconnected and removed.');
 

@@ -4,6 +4,7 @@ const { successResponse, createdResponse, badRequestResponse, unauthorizedRespon
 const PreapprovedStudent = require('../models/PreapprovedStudent');
 const PreApproveAlumni = require('../models/preApproveAlumni');
 const crypto = require('crypto');
+const Log = require('../models/Log');
 
 // @desc    Register user
 // @route   POST /api/auth/signup
@@ -167,6 +168,14 @@ const login = async (req, res) => {
       verificationStatus: user.verificationStatus
     });
 
+    // Log login
+    await Log.create({
+      type: 'login',
+      actor: user.email,
+      message: `User ${user.email} logged in`,
+      meta: { userId: user._id }
+    });
+
     res.status(200).json({
       success: true,
       message: 'Login successful',
@@ -249,6 +258,14 @@ const logout = async (req, res) => {
     // Update last active
     await User.findByIdAndUpdate(req.user._id, {
       lastActive: new Date()
+    });
+
+    // Log logout
+    await Log.create({
+      type: 'logout',
+      actor: req.user.email,
+      message: `User ${req.user.email} logged out`,
+      meta: { userId: req.user._id }
     });
 
     return successResponse(res, null, 'Logout successful');

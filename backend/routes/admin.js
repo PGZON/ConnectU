@@ -34,7 +34,52 @@ router.get('/dashboard', protect, requireAdmin, async (req, res) => {
     const totalAnnouncements = await Announcement.countDocuments();
     const totalAISuggestions = 0; // Placeholder
     // Recent activity: last 10 logs
-    const recentActivity = await Log.find().sort({ timestamp: -1 }).limit(10);
+    const recentActivityLogs = await Log.find().sort({ timestamp: -1 }).limit(10).lean();
+    // Enrich logs with actor and target details
+    const userIds = Array.from(new Set([
+      ...recentActivityLogs.map(l => l.actor),
+      ...recentActivityLogs.map(l => l.target)
+    ].filter(Boolean)));
+    const users = await User.find({
+      $or: [
+        { _id: { $in: userIds.filter(id => id.match(/^[0-9a-fA-F]{24}$/)) } },
+        { email: { $in: userIds.filter(id => !id.match(/^[0-9a-fA-F]{24}$/)) } }
+      ]
+    }).select('name email role').lean();
+    const userMap = {};
+    users.forEach(u => {
+      userMap[u._id?.toString()] = u;
+      userMap[u.email] = u;
+    });
+    // Generate short summary for each activity
+    const recentActivity = recentActivityLogs.map(log => {
+      const actor = userMap[log.actor] ? `${userMap[log.actor].role === 'alumni' ? 'Alumni' : 'User'} ${userMap[log.actor].name}` : log.actor;
+      const target = log.target && userMap[log.target] ? userMap[log.target].name : log.target;
+      let summary = '';
+      switch (log.type) {
+        case 'user_delete':
+          summary = `${actor} deleted ${target}`;
+          break;
+        case 'user_deactivate':
+          summary = `${actor} deactivated ${target}`;
+          break;
+        case 'post_create':
+          summary = `${actor} created a post`;
+          break;
+        case 'query_create':
+          summary = `${actor} posted a query`;
+          break;
+        case 'login':
+          summary = `${actor} logged in`;
+          break;
+        default:
+          summary = log.message || `${actor} performed ${log.type}`;
+      }
+      return {
+        summary,
+        timestamp: log.timestamp
+      };
+    });
     res.status(200).json({
       success: true,
       data: {
@@ -168,6 +213,7 @@ router.get('/queries', protect, requireAdmin, async (req, res) => {
       .sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: queries });
   } catch (error) {
+    console.error(error); // Log the full error stack for debugging
     res.status(500).json({ success: false, message: 'Failed to get queries', error: error.message });
   }
 });
@@ -309,8 +355,29 @@ router.post('/announcements', protect, requireAdmin, async (req, res) => {
 // Admin logs endpoint
 router.get('/logs', protect, requireAdmin, async (req, res) => {
   try {
-    const logs = await Log.find().sort({ timestamp: -1 }).limit(200);
-    res.status(200).json({ success: true, data: logs });
+    const logs = await Log.find().sort({ timestamp: -1 }).limit(200).lean();
+    // Enrich logs with actor and target details
+    const userIds = Array.from(new Set([
+      ...logs.map(l => l.actor),
+      ...logs.map(l => l.target)
+    ].filter(Boolean)));
+    const users = await User.find({
+      $or: [
+        { _id: { $in: userIds.filter(id => id.match(/^[0-9a-fA-F]{24}$/)) } },
+        { email: { $in: userIds.filter(id => !id.match(/^[0-9a-fA-F]{24}$/)) } }
+      ]
+    }).select('name email role').lean();
+    const userMap = {};
+    users.forEach(u => {
+      userMap[u._id?.toString()] = u;
+      userMap[u.email] = u;
+    });
+    const enrichedLogs = logs.map(log => ({
+      ...log,
+      actorDetails: userMap[log.actor] || null,
+      targetDetails: log.target ? (userMap[log.target] || null) : null
+    }));
+    res.status(200).json({ success: true, data: enrichedLogs });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch logs', error: error.message });
   }

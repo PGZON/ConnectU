@@ -4,7 +4,8 @@ import { useRouter, usePathname, Slot } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import { Image } from 'expo-image';
-import { LogOut, User as UserIcon, Users, CheckCircle, MessageCircle, FileText, BarChart2, Megaphone, Cpu } from 'lucide-react-native';
+import { LogOut, User as UserIcon, Users, CheckCircle, MessageCircle, FileText, BarChart2, Megaphone, Cpu, Trophy } from 'lucide-react-native';
+import AnimatedLogo from '@/components/AnimatedLogo';
 
 const navItems = [
   { label: 'Dashboard', route: '/admin/dashboard', icon: <BarChart2 color="#fff" size={20} /> },
@@ -34,12 +35,14 @@ export default function AdminLayout() {
   return (
     <View style={styles.layout}>
       <View style={styles.sidebar}>
+        <View style={{ alignItems: 'center', marginBottom: 16 }}>
+          <AnimatedLogo />
+        </View>
         <View style={styles.adminInfo}>
           <Image source={{ uri: user?.profileImageUrl }} style={styles.avatar} />
           <Text style={styles.adminName}>{user?.name}</Text>
           <Text style={styles.adminRole}>Superuser</Text>
         </View>
-        <Text style={styles.sidebarTitle}>Admin Panel</Text>
         {navItems.map((item) => (
           <TouchableOpacity
             key={item.route}
@@ -100,12 +103,6 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 14,
     marginBottom: 8,
-  },
-  sidebarTitle: {
-    color: Colors.primary,
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 32,
   },
   navItem: {
     paddingVertical: 12,

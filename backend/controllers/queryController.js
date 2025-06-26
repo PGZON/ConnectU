@@ -1,5 +1,6 @@
 const Query = require('../models/Query');
 const { successResponse, notFoundResponse, badRequestResponse, forbiddenResponse } = require('../utils/responseHandler');
+const Log = require('../models/Log');
 
 // @desc    Create a new query
 // @route   POST /api/queries
@@ -21,7 +22,14 @@ const createQuery = async (req, res) => {
 
     const query = await Query.create(queryData);
     await query.populate('student', 'name email role profileImageUrl');
-
+    // Log query creation
+    await Log.create({
+      type: 'query_create',
+      actor: req.user.email,
+      target: query._id.toString(),
+      message: `User ${req.user.email} created a query`,
+      meta: { queryId: query._id, title: query.title }
+    });
     return successResponse(res, query, 'Query created successfully');
   } catch (error) {
     console.error('Create query error:', error);
@@ -222,7 +230,14 @@ const upvoteQuery = async (req, res) => {
     }
 
     await query.save();
-
+    // Log upvote/unupvote
+    await Log.create({
+      type: hasUpvoted ? 'query_unupvote' : 'query_upvote',
+      actor: req.user.email,
+      target: query._id.toString(),
+      message: `User ${req.user.email} ${hasUpvoted ? 'removed upvote from' : 'upvoted'} a query`,
+      meta: { queryId: query._id }
+    });
     return successResponse(res, { 
       hasUpvoted: !hasUpvoted,
       upvotesCount: query.upvotes.length
@@ -254,7 +269,14 @@ const downvoteQuery = async (req, res) => {
     }
 
     await query.save();
-
+    // Log downvote/undownvote
+    await Log.create({
+      type: hasDownvoted ? 'query_undownvote' : 'query_downvote',
+      actor: req.user.email,
+      target: query._id.toString(),
+      message: `User ${req.user.email} ${hasDownvoted ? 'removed downvote from' : 'downvoted'} a query`,
+      meta: { queryId: query._id }
+    });
     return successResponse(res, { 
       hasDownvoted: !hasDownvoted,
       downvotesCount: query.downvotes.length

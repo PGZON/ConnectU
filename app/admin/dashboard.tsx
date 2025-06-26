@@ -4,6 +4,8 @@ import { useAuthStore } from '@/store/authStore';
 import Colors from '@/constants/colors';
 import { useRouter } from 'expo-router';
 import { API_BASE_URL } from '@/utils/api';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialIcons } from '@expo/vector-icons';
 
 export default function AdminDashboard() {
   const { user, token } = useAuthStore();
@@ -53,22 +55,38 @@ export default function AdminDashboard() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Admin Dashboard</Text>
-      <View style={styles.cardsRow}>
-        <View style={styles.card}><Text style={styles.cardTitle}>Total Users</Text><Text style={styles.cardValue}>{stats?.totalUsers}</Text></View>
-        <View style={styles.card}><Text style={styles.cardTitle}>Verified Users</Text><Text style={styles.cardValue}>{stats?.verifiedUsers}</Text></View>
-      </View>
-      <View style={styles.cardsRow}>
-        <View style={styles.card}><Text style={styles.cardTitle}>Queries</Text><Text style={styles.cardValue}>{stats?.totalQueries}</Text></View>
-        <View style={styles.card}><Text style={styles.cardTitle}>Posts</Text><Text style={styles.cardValue}>{stats?.totalPosts}</Text></View>
-        <View style={styles.card}><Text style={styles.cardTitle}>Polls</Text><Text style={styles.cardValue}>{stats?.totalPolls}</Text></View>
-      </View>
+      <LinearGradient
+        colors={[Colors.primary, Colors.secondary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.statsGradient}
+      >
+        <View style={styles.cardsRow}>
+          <View style={[styles.card, styles.cardHighlight]}>
+            <Text style={styles.cardTitle}>Total Users</Text>
+            <Text style={styles.cardValue}>{stats?.totalUsers}</Text>
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Verified Users</Text>
+            <Text style={styles.cardValue}>{stats?.verifiedUsers}</Text>
+          </View>
+        </View>
+        <View style={styles.cardsRow}>
+          <View style={styles.card}><Text style={styles.cardTitle}>Queries</Text><Text style={styles.cardValue}>{stats?.totalQueries}</Text></View>
+          <View style={styles.card}><Text style={styles.cardTitle}>Posts</Text><Text style={styles.cardValue}>{stats?.totalPosts}</Text></View>
+          <View style={styles.card}><Text style={styles.cardTitle}>Polls</Text><Text style={styles.cardValue}>{stats?.totalPolls}</Text></View>
+        </View>
+      </LinearGradient>
       <Text style={styles.subtitle}>Recent Activity</Text>
       <View style={styles.timeline}>
         {recent.length === 0 && <Text style={styles.empty}>No recent activity.</Text>}
         {recent.map((item, idx) => (
           <View key={idx} style={styles.timelineItem}>
-            <Text style={styles.timelineText}>{item}</Text>
+            <MaterialIcons name="history" size={18} color={Colors.primary} style={{ marginRight: 8 }} />
+            <Text style={styles.timelineText}>
+              {item.summary}
+              <Text style={{ color: Colors.textSecondary, fontSize: 13 }}>  {item.timestamp ? new Date(item.timestamp).toLocaleString() : ''}</Text>
+            </Text>
           </View>
         ))}
       </View>
@@ -80,7 +98,7 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 24,
-    backgroundColor: '#1a2233',
+    backgroundColor: Colors.background,
     alignItems: 'center',
   },
   center: {
@@ -95,62 +113,106 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     marginBottom: 24,
   },
+  statsGradient: {
+    width: '100%',
+    borderRadius: 24,
+    paddingVertical: 24,
+    paddingHorizontal: 12,
+    marginBottom: 24,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 6,
+  },
   cardsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginBottom: 16,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginHorizontal: 8,
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 24,
+    marginHorizontal: 10,
     alignItems: 'center',
-    minWidth: 120,
+    minWidth: 130,
+    borderWidth: 1,
+    borderColor: Colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
+    transition: 'transform 0.2s',
+  },
+  cardHighlight: {
+    backgroundColor: Colors.highlight,
+    borderColor: Colors.primary,
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.18,
+    elevation: 4,
+    transform: [{ scale: 1.04 }],
   },
   cardTitle: {
     fontSize: 16,
-    color: Colors.text,
+    color: Colors.textSecondary,
     marginBottom: 8,
     fontWeight: '600',
+    letterSpacing: 0.5,
   },
   cardValue: {
-    fontSize: 22,
+    fontSize: 28,
     color: Colors.primary,
     fontWeight: 'bold',
+    letterSpacing: 1,
   },
   subtitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: Colors.text,
-    marginTop: 24,
-    marginBottom: 12,
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginTop: 12,
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+    marginLeft: 8,
   },
   timeline: {
     width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    minHeight: 80,
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 20,
+    minHeight: 100,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 1,
   },
   timelineItem: {
-    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   timelineText: {
     color: Colors.text,
-    fontSize: 15,
+    fontSize: 16,
+    flex: 1,
   },
   empty: {
     color: Colors.textSecondary,
     fontStyle: 'italic',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 12,
   },
   error: {
-    color: 'red',
+    color: Colors.error,
     fontSize: 16,
   },
 }); 

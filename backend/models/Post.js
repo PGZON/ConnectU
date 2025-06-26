@@ -151,17 +151,17 @@ const postSchema = new mongoose.Schema({
 
 // Virtual for like count
 postSchema.virtual('likeCount').get(function() {
-  return this.likes.length;
+  return this.likes ? this.likes.length : 0;
 });
 
 // Virtual for comment count
 postSchema.virtual('commentCount').get(function() {
-  return this.comments.length;
+  return this.comments ? this.comments.length : 0;
 });
 
 // Virtual for engagement score
 postSchema.virtual('engagementScore').get(function() {
-  return this.likes.length + (this.comments.length * 2) + this.shares;
+  return (this.likes ? this.likes.length : 0) + ((this.comments ? this.comments.length : 0) * 2) + (this.shares || 0);
 });
 
 // Indexes for better performance

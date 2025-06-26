@@ -1,6 +1,7 @@
 const Post = require('../models/Post');
 const { successResponse, notFoundResponse, badRequestResponse, forbiddenResponse } = require('../utils/responseHandler');
 const { uploadImage, uploadVideo, deleteFile } = require('../config/cloudinary');
+const Log = require('../models/Log');
 
 // @desc    Create a new post
 // @route   POST /api/posts
@@ -57,6 +58,14 @@ const createPost = async (req, res) => {
     };
     const post = await Post.create(postData);
     await post.populate('author', 'name email role profileImageUrl');
+    // Log post creation
+    await Log.create({
+      type: 'post_create',
+      actor: req.user.email,
+      target: post._id.toString(),
+      message: `User ${req.user.email} created a post`,
+      meta: { postId: post._id, caption: post.caption }
+    });
     // Simulate upload progress (for demo)
     res.setHeader('X-Upload-Progress', '100');
     console.log('Post created with media:', mediaArr);
@@ -208,7 +217,14 @@ const likePost = async (req, res) => {
     }
 
     await post.save();
-
+    // Log like/unlike
+    await Log.create({
+      type: isLiked ? 'post_unlike' : 'post_like',
+      actor: req.user.email,
+      target: post._id.toString(),
+      message: `User ${req.user.email} ${isLiked ? 'unliked' : 'liked'} a post`,
+      meta: { postId: post._id }
+    });
     return successResponse(res, { 
       isLiked: !isLiked,
       likesCount: post.likes.length 
@@ -245,7 +261,14 @@ const addComment = async (req, res) => {
 
     post.comments.push(comment);
     await post.save();
-
+    // Log comment creation
+    await Log.create({
+      type: 'comment_add',
+      actor: req.user.email,
+      target: post._id.toString(),
+      message: `User ${req.user.email} commented on a post`,
+      meta: { postId: post._id, comment: req.body.content }
+    });
     return successResponse(res, comment, 'Comment added successfully');
   } catch (error) {
     console.error('Add comment error:', error);

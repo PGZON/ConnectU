@@ -167,17 +167,17 @@ const querySchema = new mongoose.Schema({
 
 // Virtual for vote count
 querySchema.virtual('voteCount').get(function() {
-  return this.upvotes.length - this.downvotes.length;
+  return (this.upvotes ? this.upvotes.length : 0) - (this.downvotes ? this.downvotes.length : 0);
 });
 
 // Virtual for answer count
 querySchema.virtual('answerCount').get(function() {
-  return this.answers.length;
+  return this.answers ? this.answers.length : 0;
 });
 
 // Virtual for accepted answer
 querySchema.virtual('acceptedAnswer').get(function() {
-  return this.answers.find(answer => answer.isAccepted);
+  return (Array.isArray(this.answers) && typeof this.answers.find === 'function') ? this.answers.find(answer => answer && answer.isAccepted) : undefined;
 });
 
 // Virtual for time since creation

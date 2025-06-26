@@ -71,7 +71,14 @@ const updateUserProfile = async (req, res) => {
 
     await user.save();
     const userResponse = user.getPublicProfile();
-    
+    // Log profile update
+    await Log.create({
+      type: 'profile_update',
+      actor: req.user.email,
+      target: user.email,
+      message: `User ${req.user.email} updated their profile`,
+      meta: { userId: user._id }
+    });
     return successResponse(res, userResponse, 'Profile updated successfully');
   } catch (error) {
     console.error('Update user profile error:', error);
