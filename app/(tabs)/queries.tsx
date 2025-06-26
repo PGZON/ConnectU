@@ -222,13 +222,16 @@ export default function QueriesScreen() {
           </View>
         }
       />
-      <TouchableOpacity 
-        style={styles.fab}
-        onPress={handleAskQuery}
-        activeOpacity={0.8}
-      >
-        <Plus size={24} color="#FFFFFF" />
-      </TouchableOpacity>
+      {/* Show the + button only for student users */}
+      {user?.role === 'student' && (
+        <TouchableOpacity 
+          style={styles.fab}
+          onPress={handleAskQuery}
+          activeOpacity={0.8}
+        >
+          <Plus size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }

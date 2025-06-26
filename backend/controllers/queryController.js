@@ -173,8 +173,18 @@ const addAnswer = async (req, res) => {
 
     query.answers.push(answer);
     query.status = 'answered';
-    await query.save();
 
+    // If the user is an admin, log the action
+    if (req.user.role === 'admin') {
+      query.adminLogs.push({
+        admin: req.user._id,
+        action: 'answer_query',
+        note: answer.content.substring(0, 100),
+        timestamp: new Date()
+      });
+    }
+
+    await query.save();
     return successResponse(res, answer, 'Answer added successfully');
   } catch (error) {
     console.error('Add answer error:', error);

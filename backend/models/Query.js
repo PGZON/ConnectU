@@ -147,6 +147,29 @@ const querySchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+
+  // Admin logs
+  adminLogs: [
+    {
+      admin: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+      },
+      action: {
+        type: String,
+        required: true
+      },
+      note: {
+        type: String,
+        default: ''
+      },
+      timestamp: {
+        type: Date,
+        default: Date.now
+      }
+    }
+  ],
   
   // Auto-assignment settings
   autoAssign: {
