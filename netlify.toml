@@ -1,3 +1,0 @@
-[build]
-  command = "expo export:web"
-  publish = "dist"

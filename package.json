@@ -3,7 +3,6 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "preinstall": "npm install --legacy-peer-deps",
     "start": "npx expo start",
     "start-web": "npx expo start --web",
     "start-dev": "npx expo start --dev-client",
