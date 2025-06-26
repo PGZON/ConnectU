@@ -1,117 +1,177 @@
 # ConnectU - Student-Alumni Interaction Platform
 
-A comprehensive platform for connecting students with alumni for career guidance, networking, and mentorship.
+A full-stack platform for connecting students and alumni for career guidance, networking, and mentorship.
 
-## Features
+---
 
-- 🔐 **Role-based Authentication** (Student, Alumni, Admin)
-- 📱 **Instagram-style Posts** with media support
-- ❓ **Career Q&A System** between students and alumni
-- 🔗 **Connection Management** with request/accept workflow
-- 💬 **Real-time Messaging** between connected users
-- 👤 **Profile Management** with image uploads
-- 📊 **Admin Dashboard** (future scope)
+## ✨ Features
 
-## Tech Stack
+- **Role-based Authentication:** Student, Alumni, Admin
+- **Instagram-style Posts:** Media uploads, likes, comments
+- **Career Q&A System:** Students ask, alumni answer
+- **Connection Management:** Request, accept, withdraw, disconnect
+- **Real-time Messaging:** Chat with connections
+- **Profile Management:** Rich profiles, image uploads
+- **Admin Dashboard:** User, post, query, poll, announcement, and log management
+- **Mobile-first & Responsive:** Modern UI for web and mobile
+- **Cloudinary Media Uploads:** Images, videos, files
+- **State Management:** Powered by Zustand
+- **TypeScript:** End-to-end type safety
 
-### Frontend
-- **React Native** with Expo
-- **TypeScript** for type safety
-- **Zustand** for state management
-- **Expo Router** for navigation
-- **NativeWind** for styling
+---
 
-### Backend
-- **Node.js** with Express
-- **MongoDB** with Mongoose
-- **JWT** for authentication
-- **Cloudinary** for media uploads
-- **Socket.io** for real-time features (ready for implementation)
-
-## Project Structure
+## 🗂️ Project Structure
 
 ```
-connectU/
-├── app/                    # Frontend screens
-├── backend/               # Backend API
-│   ├── controllers/       # Route controllers
-│   ├── middleware/        # Custom middleware
-│   ├── models/           # MongoDB models
-│   ├── routes/           # API routes
-│   ├── utils/            # Utility functions
-│   └── config/           # Configuration files
-├── components/           # Reusable components
-├── store/               # Zustand stores
-├── types/               # TypeScript types
-└── utils/               # Frontend utilities
+ConnectU/
+├── app/           # React Native (Expo) frontend
+│   ├── admin/     # Admin panel screens
+│   ├── (tabs)/    # Main user tabs (feed, network, messages, etc.)
+│   ├── ...        # Other screens (profile, post, query, etc.)
+├── backend/       # Node.js/Express backend API
+│   ├── controllers/
+│   ├── middleware/
+│   ├── models/
+│   ├── routes/
+│   ├── utils/
+│   └── config/
+├── components/    # Reusable UI components
+├── store/         # Zustand state stores
+├── types/         # Shared TypeScript types
+├── constants/     # Color palette, etc.
+└── utils/         # API, date, socket utilities
 ```
 
-## Setup Instructions
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js (v18 or higher)
+- Node.js v18+
 - MongoDB (local or Atlas)
-- Expo CLI
-- Cloudinary account (for media uploads)
+- Expo CLI (`npm install -g expo-cli`)
+- Cloudinary account
 
-### Backend Setup
+### Backend
 
-1. **Navigate to backend directory:**
-   ```bash
-   cd backend
-   ```
+```bash
+cd backend
+npm install
+cp env.example .env   # Create and edit your .env file
+npm run dev           # Starts server at http://localhost:5000
+```
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+### Frontend
 
-3. **Environment Configuration:**
-   ```bash
-   cp env.example .env
-   ```
-   
-   Update `.env` with your configuration:
-   ```env
-   PORT=5000
-   MONGODB_URI=mongodb://localhost:27017/connectu
-   JWT_SECRET=your-super-secret-jwt-key
-   CLOUDINARY_CLOUD_NAME=your-cloud-name
-   CLOUDINARY_API_KEY=your-api-key
-   CLOUDINARY_API_SECRET=your-api-secret
-   ```
+```bash
+npm install
+npm start             # Starts Expo dev server
+```
+- Edit `utils/api.ts` to set your API base URL if needed.
+- Use Expo Go app or an emulator to preview.
 
-4. **Start the backend server:**
-   ```bash
-   npm run dev
-   ```
+---
 
-   The API will be available at `http://localhost:5000`
+## 🛠️ Tech Stack
 
-### Frontend Setup
+**Frontend:**  
+- React Native (Expo), TypeScript, Zustand, Expo Router, NativeWind, @expo/vector-icons
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+**Backend:**  
+- Node.js, Express, MongoDB (Mongoose), JWT, Cloudinary, Socket.io
 
-2. **Update API configuration:**
-   Edit `utils/api.ts` and update the `API_BASE_URL`:
-   ```typescript
-   const API_BASE_URL = __DEV__ ? 'http://localhost:5000/api' : 'https://your-production-api.com/api';
-   ```
+---
 
-3. **Start the development server:**
-   ```bash
-   npm start
-   ```
+## 🎨 Theming
 
-4. **Run on device/simulator:**
-   - Press `i` for iOS simulator
-   - Press `a` for Android emulator
-   - Scan QR code with Expo Go app
+Color palette (`constants/colors.ts`):
 
-## API Endpoints
+| Name        | Value      | Usage                |
+|-------------|------------|----------------------|
+| primary     | #6C63FF    | Brand, highlights    |
+| secondary   | #FF6584    | Accent               |
+| background  | #F8F9FA    | App background       |
+| card        | #FFFFFF    | Card backgrounds     |
+| text        | #333333    | Main text            |
+| textSecondary| #6C757D   | Secondary text       |
+| border      | #E9ECEF    | Borders              |
+| success     | #28A745    | Success              |
+| error       | #DC3545    | Errors               |
+| warning     | #FFC107    | Warnings             |
+| info        | #17A2B8    | Info                 |
+| inactive    | #ADB5BD    | Inactive elements    |
+| highlight   | #E6E6FF    | Highlight bg         |
+
+---
+
+## 🧩 Main Components
+
+- `PostCard`, `UserCard`, `QueryCard`, `MessageBubble`, `Avatar`, `Button`, `AnimatedLogo`, `Card`
+
+---
+
+## 🏛️ Backend Structure
+
+**Controllers:**  
+- `authController.js`, `userController.js`, `postController.js`, `queryController.js`, `connectionController.js`, `messageController.js`, `pollController.js`
+
+**Models:**  
+- `User.js`, `Post.js`, `Query.js`, `Connection.js`, `Message.js`, `Poll.js`, `Announcement.js`, `Log.js`, `PreapprovedStudent.js`, `preApproveAlumni.js`
+
+**Routes:**  
+- `auth.js`, `users.js`, `posts.js`, `queries.js`, `connections.js`, `messages.js`, `polls.js`, `admin.js`, `verify.js`
+
+---
+
+## 🗃️ State Management
+
+Zustand stores in `/store`:
+- `authStore.ts` (auth/user)
+- `feedStore.ts` (posts/feed)
+- `queryStore.ts` (Q&A)
+- `connectionStore.ts` (connections)
+- `messageStore.ts` (messaging)
+
+---
+
+## 🧑‍💻 TypeScript Types
+
+See `types/index.ts` for all shared types:  
+- `User`, `Post`, `Comment`, `Query`, `Answer`, `Connection`, `Message`, etc.
+
+---
+
+## 🛡️ Security & Auth
+
+- JWT-based authentication
+- Role-based access (student, alumni, admin)
+- Secure password hashing (bcryptjs)
+- Rate limiting, helmet, CORS
+
+---
+
+## ☁️ Media Uploads
+
+- Cloudinary integration for images, videos, and files
+- See `backend/config/cloudinary.js` for upload/optimization logic
+
+---
+
+## 🧪 Testing
+
+- Backend: Jest & Supertest (`npm run test` in `/backend`)
+- Frontend: Manual and E2E (add your preferred tools)
+
+---
+
+## 🛠️ Deployment
+
+- Expo EAS for mobile/web builds (see `app.json`)
+- Backend: Deploy to any Node.js host (Heroku, Render, etc.)
+
+---
+
+## 📚 API Reference
 
 ### Authentication
 - `POST /api/auth/signup` - Register new user
@@ -147,98 +207,56 @@ connectU/
 - `GET /api/messages/conversation/:userId` - Get conversation
 - `PUT /api/messages/conversation/:userId/read` - Mark as read
 
-## Database Models
+### Polls
+- `GET /api/polls` - Get all polls
+- `POST /api/polls` - Create new poll
+- `POST /api/polls/:id/vote` - Vote in a poll
+- `GET /api/polls/:id/results` - Get poll results
 
-### User
-- Basic info (name, email, password)
-- Role-based fields (student/alumni specific)
-- Profile information (bio, images, social links)
-- Verification status
+### Announcements
+- `GET /api/admin/announcements` - Get all announcements
+- `POST /api/admin/announcements` - Create announcement
+- `PUT /api/admin/announcements/:id` - Update announcement
+- `DELETE /api/admin/announcements/:id` - Delete announcement
 
-### Post
-- Content and media
-- Engagement (likes, comments)
-- Privacy settings
-- Analytics
+### Admin
+- `GET /api/admin/dashboard` - Get dashboard stats
+- `GET /api/admin/logs` - Get system logs
+- `GET /api/admin/users` - List users
+- `PUT /api/admin/users/:id/activate` - Activate user
+- `DELETE /api/admin/users/:id` - Deactivate/delete user
 
-### Query
-- Question details
-- Category and priority
-- Assignment to alumni
-- Answers and feedback
+---
 
-### Connection
-- Request/response workflow
-- Connection strength
-- Interaction tracking
+## 👥 Admin Panel
 
-### Message
-- Real-time messaging
-- Media support
-- Read status
-- Message history
+- Modern, responsive sidebar (collapses to hamburger on mobile)
+- Manage users, posts, queries, polls, announcements, logs, and AI manager
+- Built with React Native for web/mobile parity
 
-## State Management
+---
 
-The app uses Zustand for state management with the following stores:
+## 📦 Scripts
 
-- **authStore** - Authentication and user data
-- **feedStore** - Posts and feed management
-- **queryStore** - Q&A system
-- **connectionStore** - Connection management
-- **messageStore** - Messaging system
+**Frontend:**
+- `npm start` — Expo dev server
+- `npm run android` / `npm run ios` / `npm run web` — Platform-specific
 
-## Development
+**Backend:**
+- `npm run dev` — Start backend with nodemon
+- `npm start` — Start backend
 
-### Adding New Features
+---
 
-1. **Backend:**
-   - Create model in `backend/models/`
-   - Add controller in `backend/controllers/`
-   - Create routes in `backend/routes/`
-   - Update API client in `utils/api.ts`
+## 📝 Contributing
 
-2. **Frontend:**
-   - Create screen in `app/`
-   - Add to store if needed
-   - Update types in `types/index.ts`
-
-### Testing
-
-```bash
-# Backend tests
-cd backend
-npm test
-
-# Frontend tests (when implemented)
-npm test
-```
-
-## Deployment
-
-### Backend
-- Deploy to platforms like Heroku, Railway, or DigitalOcean
-- Set up MongoDB Atlas for database
-- Configure environment variables
-- Set up Cloudinary for media storage
-
-### Frontend
-- Build with Expo EAS
-- Deploy to app stores
-- Configure production API endpoints
-
-## Contributing
-
-1. Fork the repository
+1. Fork the repo
 2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+3. Commit and push
+4. Open a PR
 
-## License
+---
 
-MIT License - see LICENSE file for details
+## 📄 License
 
-## Support
-
-For support and questions, please open an issue in the repository.
+MIT
