@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
@@ -8,6 +8,7 @@ import Toast from 'react-native-toast-message';
 import { socketService } from '@/utils/socket';
 import { useMessageStore } from '@/store/messageStore';
 import Colors from '@/constants/colors';
+import CustomSplashScreen from '@/components/CustomSplashScreen';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -15,6 +16,7 @@ export default function RootLayout() {
   const { user, isLoading, checkAuthState } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
+  const [splashDone, setSplashDone] = useState(false);
 
   console.log('--- [app/_layout.tsx] InitialLayout Render ---');
   console.log(`isLoading: ${isLoading}`);
@@ -58,12 +60,8 @@ export default function RootLayout() {
     }
   }, [user, segments, isLoading, router]);
 
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
+  if (isLoading || !splashDone) {
+    return <CustomSplashScreen onFinish={() => setSplashDone(true)} />;
   }
 
   return (

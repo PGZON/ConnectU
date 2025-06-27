@@ -4,13 +4,13 @@
     "slug": "connectU",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/ConnectU_Logo.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
+      "image": "./assets/images/ConnectU_Logo.png",
+      "resizeMode": "cover",
       "backgroundColor": "#ffffff"
     },
     "ios": {
@@ -19,14 +19,14 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/ConnectU_Logo.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.connectu.app",
       "usesCleartextTraffic": true
     },
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/ConnectU_Logo.png"
     },
     "plugins": [
       [
