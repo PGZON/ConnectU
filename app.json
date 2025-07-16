@@ -26,7 +26,11 @@
       "usesCleartextTraffic": true
     },
     "web": {
-      "favicon": "./assets/images/ConnectU_Logo.png"
+      "favicon": "./assets/images/ConnectU_Logo.png",
+      "meta": {
+        "name": "google-site-verification",
+        "content": "TMl4JHRaMQAPnelWV7jlbleeOqjsPJBki68iiOecC4I"
+      }
     },
     "plugins": [
       [
